@@ -1,62 +1,44 @@
 /*
- * Copyright (c) 2018 <copyright holder> <email>
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
+ * SRT - Secure, Reliable, Transport
+ * Copyright (c) 2018 Haivision Systems Inc.
+ * 
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ * 
+ * Written by:
+ *             Haivision Systems Inc.
  */
-#include <gtest/gtest.h>
 
-#include <thread>
-#include <future>
+#include <gtest/gtest.h>
 
 #include "srt.h"
 
 
-
-
-void do_accept_socket(SRTSOCKET listener_socket, int pollid, std::promise<SRTSOCKET> accept_result)
-{
-    sockaddr_in client_address;
-    int length = sizeof(sockaddr_in);
-    SRTSOCKET accepted_socket = srt_accept(listener_socket, (sockaddr*)&client_address, &length);
-    
-//     int rlen = 2;
-//     SRTSOCKET read[2];
-// 
-//     int wlen = 2;
-//     SRTSOCKET write[2];
-// 
-//     const int res = srt_epoll_wait(pollid, read, &rlen,
-//                              write, &wlen,
-//                              500,
-//                              0, 0, 0, 0), SRT_ERROR;
-// 
-//     ASSERT_EQ(rlen, 1);
-//     ASSERT_EQ(read[0], m_client_sock);
-    
-    
-    accept_result.set_value(accepted_socket);  // Notify future
-    //accept_result.set_value(SRT_INVALID_SOCK);  // Notify future
-}
-
+/*
+ * TESTING SCENARIO
+ * Both peers exchange HandShake v5.
+ * Listener is sender   in a non-blocking mode
+ * Caller   is receiver in a     blocking mode
+ * 
+ *     Caller               | Listener             | Passwords | Connection
+ *     STRICTENC | Password | STRICTENC | Password |           |     result
+ * ------------------------------------------------------------------------
+ *  1.       yes        set         yes        set       match       accept
+ *  2.       yes        set         yes        set    mismatch       reject
+ *  3.         X    not set         yes        set           X       reject
+ *  4.       yes        set           X    not set           X       reject
+ *  5.         X    not set           X    not set           X       accept
+ *  6.       yes        set          no        set       match       accept
+ *  7.       yes        set          no        set    mismatch       reject
+ *  8.         X    not set          no        set           X       accept
+ *  9.        no        set         yes        set       match       accept
+ * 10.        no        set         yes        set    mismatch       reject
+ * 11.        no        set           X    not set           X       accept
+ * 12.        no        set          no        set       match       accept
+ * 13.        no        set          no        set    mismatch       reject
+ * 
+*/
 
 
 class TestStrictEncryption
@@ -121,8 +103,8 @@ public:
     {
         static_assert(sizeof s_yes == sizeof s_no, "Type sizes mismatch!");
         
-        ASSERT_NE(srt_setsockopt(m_caller_socket,   0, SRTO_TSBPDMODE, strict_caller   ? &s_yes : &s_no, sizeof s_yes), SRT_ERROR);
-        ASSERT_NE(srt_setsockopt(m_listener_socket, 0, SRTO_TSBPDMODE, strict_listener ? &s_yes : &s_no, sizeof s_yes), SRT_ERROR);
+        ASSERT_NE(srt_setsockopt(m_caller_socket,   0, SRTO_STRICTENC, strict_caller   ? &s_yes : &s_no, sizeof s_yes), SRT_ERROR);
+        ASSERT_NE(srt_setsockopt(m_listener_socket, 0, SRTO_STRICTENC, strict_listener ? &s_yes : &s_no, sizeof s_yes), SRT_ERROR);
     }
     
     
@@ -213,11 +195,15 @@ private:
 
 
 /** 
-* @fn TEST_F(TestStrictEncryption, PasswordLength)
-* @brief The password length should belong to the interval of [10; 80]
-*/
+ * @fn TEST_F(TestStrictEncryption, PasswordLength)
+ * @brief The password length should belong to the interval of [10; 80]
+ */
 TEST_F(TestStrictEncryption, PasswordLength)
 {
+    // Empty password sets no none
+    EXPECT_EQ(SetPassword(std::string(""), true),  SRT_SUCCESS);
+    EXPECT_EQ(SetPassword(std::string(""), false), SRT_SUCCESS);
+    
     EXPECT_EQ(SetPassword(std::string("too_short"), true),  SRT_ERROR);
     EXPECT_EQ(SetPassword(std::string("too_short"), false), SRT_ERROR);
     
@@ -234,7 +220,12 @@ TEST_F(TestStrictEncryption, PasswordLength)
 }
 
 
-TEST_F(TestStrictEncryption, StrictOnOnPwdMatch)
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Match)
+ * @brief Test case #1
+ */
+TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Match)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -244,7 +235,12 @@ TEST_F(TestStrictEncryption, StrictOnOnPwdMatch)
 }
 
 
-TEST_F(TestStrictEncryption, StrictOnOnPwdMismatch)
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Mismatch)
+ * @brief Test case #2
+ */
+TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Mismatch)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -255,77 +251,268 @@ TEST_F(TestStrictEncryption, StrictOnOnPwdMismatch)
 
 
 
-
-TEST(STRICT_ENCRIPTION, DISABLED_BothPeersSetStrictEnc)
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_Set)
+ * @brief Test case #3.1
+ */
+TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_Set)
 {
-    ASSERT_EQ(srt_startup(), 0);
-
-    const int yes = 1;
-    const int no = 0;
+    SetStrictEncryption(true, true);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string("s!t@r#i$c^u"));
     
-    const char caller_pwd[] = "s!t@r#i$c^t";
-    SRTSOCKET caller_socket = srt_create_socket();
-    ASSERT_NE(caller_socket, SRT_INVALID_SOCK);
-
-    ASSERT_NE(srt_setsockflag(caller_socket, SRTO_SENDER, &yes, sizeof yes), SRT_ERROR);
-    ASSERT_NE(srt_setsockopt (caller_socket, 0, SRTO_RCVSYN,    &yes,  sizeof yes),  SRT_ERROR); // for async connect
-    ASSERT_NE(srt_setsockopt (caller_socket, 0, SRTO_SNDSYN,    &yes,  sizeof yes),  SRT_ERROR); // for async connect
-    ASSERT_NE(srt_setsockopt (caller_socket, 0, SRTO_TSBPDMODE, &yes, sizeof yes), SRT_ERROR);
-    
-    // Setting strict encryption values for caller socket
-    ASSERT_NE(srt_setsockopt (caller_socket, 0, SRTO_STRICTENC, &yes, sizeof yes), SRT_ERROR);
-    ASSERT_NE(srt_setsockopt (caller_socket, 0, SRTO_PASSPHRASE, caller_pwd, sizeof caller_pwd), SRT_ERROR);
-    
-    
-    const char listener_pwd[] = "s!t@r#i$c^u";  // a different password
-    //const char listener_pwd[] = "s!t@r#i$c^t";
-    SRTSOCKET listener_socket = srt_create_socket();
-    ASSERT_NE(listener_socket, SRT_INVALID_SOCK);
-
-    ASSERT_NE(srt_setsockflag(listener_socket, SRTO_SENDER, &no, sizeof no), SRT_ERROR);
-    ASSERT_NE(srt_setsockopt (listener_socket, 0, SRTO_RCVSYN,    &yes,  sizeof yes),  SRT_ERROR); // for async connect
-    ASSERT_NE(srt_setsockopt (listener_socket, 0, SRTO_SNDSYN,    &yes,  sizeof yes),  SRT_ERROR); // for async connect
-    ASSERT_NE(srt_setsockopt (listener_socket, 0, SRTO_TSBPDMODE, &yes, sizeof yes), SRT_ERROR);
-    
-    // Setting strict encryption values for caller socket
-    ASSERT_NE(srt_setsockopt (listener_socket, 0, SRTO_STRICTENC, &yes, sizeof yes), SRT_ERROR);
-    ASSERT_NE(srt_setsockopt (listener_socket, 0, SRTO_PASSPHRASE, listener_pwd, sizeof listener_pwd), SRT_ERROR);
-    
-    sockaddr_in sa;
-    memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET;
-    sa.sin_port = htons(5200);
-    ASSERT_EQ(inet_pton(AF_INET, "127.0.0.1", &sa.sin_addr), 1);
-    sockaddr* psa = (sockaddr*)&sa;
-    
-    ASSERT_NE(srt_bind(listener_socket, psa, sizeof sa), SRT_ERROR);
-    
-    ASSERT_NE(srt_listen(listener_socket, 4), SRT_ERROR);
-    
-//     sockaddr_in client_address;
-//     int length = sizeof(sockaddr_in);
-//     SRTSOCKET accepted_socket = srt_accept(listener_socket, (sockaddr*)&client_address, &length);
-//     if (accepted_socket == SRT_INVALID_SOCK)
-//     {
-//         
-//     }
-    
-//     std::promise<SRTSOCKET> accept_result;
-//     std::future<SRTSOCKET> accept_result_future = accept_result.get_future();
-//     
-//     std::thread work_thread(do_accept_socket, listener_socket,
-//                             std::move(accept_result));
-//     
-//     EXPECT_NE(srt_connect(caller_socket, psa, sizeof sa), SRT_ERROR);
-//     
-//     accept_result_future.wait();  // wait for result
-//     std::cout << "result=" << accept_result_future.get() << '\n';
-//     EXPECT_EQ(accept_result_future.get(), SRT_ERROR);
-//     std::cout << "accept finished \n";
-//     work_thread.join();
-//     std::cout << "join finished \n";
-    
-    ASSERT_NE(srt_close(caller_socket), SRT_ERROR);
-    ASSERT_NE(srt_close(listener_socket), SRT_ERROR);
-    srt_cleanup();
+    TestConnect(SRT_ERROR, SRT_ERROR);
 }
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_Set)
+ * @brief Test case #3.2
+ */
+TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_Set)
+{
+    SetStrictEncryption(false, true);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string("s!t@r#i$c^u"));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_None)
+ * @brief Test case #4.1
+ */
+TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_None)
+{
+    SetStrictEncryption(true, true);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^u"), std::string(""));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_None)
+ * @brief Test case #4.2
+ */
+TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_None)
+{
+    SetStrictEncryption(true, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^u"), std::string(""));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_None)
+ * @brief Test case #5.1
+ */
+TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_None)
+{
+    SetStrictEncryption(true, true);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_None)
+ * @brief Test case #5.2
+ */
+TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_None)
+{
+    SetStrictEncryption(true, false);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_None)
+ * @brief Test case #5.3
+ */
+TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_None)
+{
+    SetStrictEncryption(false, true);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_None)
+ * @brief Test case #5.4
+ */
+TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_None)
+{
+    SetStrictEncryption(false, false);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Match)
+ * @brief Test case #6
+ */
+TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Match)
+{
+    SetStrictEncryption(true, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c^t"));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Mismatch)
+ * @brief Test case #7
+ */
+TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Mismatch)
+{
+    SetStrictEncryption(true, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c^"));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_Set)
+ * @brief Test case #8 A
+ */
+TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_Set)
+{
+    SetStrictEncryption(true, false);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string("s!t@r#i$c^"));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_Set)
+ * @brief Test case #8 B
+ */
+TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_Set)
+{
+    SetStrictEncryption(false, false);
+    // passwords mismatch
+    SetPasswords(std::string(""), std::string("s!t@r#i$c^"));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Match)
+ * @brief Test case #9
+ */
+TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Match)
+{
+    SetStrictEncryption(false, true);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c^t"));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Mismatch)
+ * @brief Test case #10
+ */
+TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Mismatch)
+{
+    SetStrictEncryption(false, true);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c^"));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_None)
+ * @brief Test case #11 A
+ */
+TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_None)
+{
+    SetStrictEncryption(false, true);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_None)
+ * @brief Test case #11 B
+ */
+TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_None)
+{
+    SetStrictEncryption(false, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string(""));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Match)
+ * @brief Test case #12
+ */
+TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Match)
+{
+    SetStrictEncryption(false, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c^t"));
+    
+    TestConnect(SRT_SUCCESS, 1 /* only one socket epolled*/);
+}
+
+
+/** 
+ * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Mismatch)
+ * @brief Test case #13
+ */
+TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Mismatch)
+{
+    SetStrictEncryption(false, false);
+    // passwords mismatch
+    SetPasswords(std::string("s!t@r#i$c^t"), std::string("s!t@r#i$c00"));
+    
+    TestConnect(SRT_ERROR, SRT_ERROR);
+}
+
