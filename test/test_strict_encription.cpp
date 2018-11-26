@@ -122,6 +122,17 @@ public:
     }
     
     
+    int GetKMState(bool is_caller)
+    {
+        const SRTSOCKET socket = is_caller ? m_caller_socket : m_listener_socket;
+        int km_state = 0;
+        int opt_size = sizeof km_state;
+        srt_getsockopt(socket, 0, SRTO_KMSTATE, reinterpret_cast<void*>(&km_state), &opt_size);
+        
+        return km_state;
+    }
+    
+    
     void TestConnect(const int res_connect_expected, const int wait_res_expected)
     {
         sockaddr_in sa;
@@ -143,6 +154,8 @@ public:
 
         EXPECT_EQ(srt_connect(m_caller_socket, psa, sizeof sa), res_connect_expected);
         
+        std::cerr << "srt_connect returned error: " << srt_getlasterror_str() << " (code " << srt_getlasterror(NULL) << ")\n";
+        
         int rlen = 2;
         SRTSOCKET read[2];
 
@@ -153,6 +166,33 @@ public:
                                              write, &wlen,
                                              500, /* timeout */
                                              0, 0, 0, 0);
+        
+        const std::string km_state[] = {
+            std::string("SRT_KM_S_UNSECURED (0)"),      //No encryption
+            std::string("SRT_KM_S_SECURING  (1)"),      //Stream encrypted, exchanging Keying Material
+            std::string("SRT_KM_S_SECURED   (2)"),      //Stream encrypted, keying Material exchanged, decrypting ok.
+            std::string("SRT_KM_S_NOSECRET  (3)"),      //Stream encrypted and no secret to decrypt Keying Material
+            std::string("SRT_KM_S_BADSECRET (4)")       //Stream encrypted and wrong secret, cannot decrypt Keying Material        
+        };
+        
+        std::cout << "KM State caller: "   << km_state[GetKMState( true)] << '\n';
+        std::cout << "KM State listener: " << km_state[GetKMState(false)] << '\n';
+        
+        const std::string socket_state[] = {
+            std::string("SRTS_INVALID"),
+            std::string("SRTS_INIT = 1"),
+            std::string("SRTS_OPENED"),
+            std::string("SRTS_LISTENING"),
+            std::string("SRTS_CONNECTING"),
+            std::string("SRTS_CONNECTED"),
+            std::string("SRTS_BROKEN"),
+            std::string("SRTS_CLOSING"),
+            std::string("SRTS_CLOSED"),
+            std::string("SRTS_NONEXIST")
+        };
+        
+        std::cout << "Caller   state " << socket_state[srt_getsockstate(m_caller_socket)]   << "\n";
+        std::cout << "Listener state " << socket_state[srt_getsockstate(m_listener_socket)] << "\n";
 
         EXPECT_EQ(epoll_res, wait_res_expected);
         if (epoll_res == SRT_ERROR)
@@ -161,10 +201,9 @@ public:
         }
         
         if (epoll_res == SRT_ERROR)
-            std::cerr << srt_getlasterror_str() << '\n';
-        
-        std::cout << srt_getlasterror(NULL) << '\n';
+            std::cerr << "Epoll returned error: " << srt_getlasterror_str() << " (code " << srt_getlasterror(NULL) << '\n';
 
+        std::cerr << "write[0]: " << write[0] << " (listener " << m_listener_socket << ")\n";
         if (res_connect_expected == SRT_SUCCESS)
         {
             EXPECT_EQ(rlen, 0);
@@ -225,7 +264,7 @@ TEST_F(TestStrictEncryption, PasswordLength)
  * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Match)
  * @brief Test case #1
  */
-TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Match)
+TEST_F(TestStrictEncryption, Case_1_Strict_On_On_Pwd_Set_Set_Match)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -240,7 +279,7 @@ TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Match)
  * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Mismatch)
  * @brief Test case #2
  */
-TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Mismatch)
+TEST_F(TestStrictEncryption, Case_2_Strict_On_On_Pwd_Set_Set_Mismatch)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -255,7 +294,7 @@ TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_Set_Mismatch)
  * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_Set)
  * @brief Test case #3.1
  */
-TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_Set)
+TEST_F(TestStrictEncryption, Case_3_1_Strict_On_On_Pwd_None_Set)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -270,7 +309,7 @@ TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_Set)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_Set)
  * @brief Test case #3.2
  */
-TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_Set)
+TEST_F(TestStrictEncryption, Case_3_2_Strict_Off_On_Pwd_None_Set)
 {
     SetStrictEncryption(false, true);
     // passwords mismatch
@@ -285,7 +324,7 @@ TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_Set)
  * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_None)
  * @brief Test case #4.1
  */
-TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_None)
+TEST_F(TestStrictEncryption, Case_4_1_Strict_On_On_Pwd_Set_None)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -300,7 +339,7 @@ TEST_F(TestStrictEncryption, Strict_On_On_Pwd_Set_None)
  * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_None)
  * @brief Test case #4.2
  */
-TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_None)
+TEST_F(TestStrictEncryption, Case_4_2_Strict_On_Off_Pwd_Set_None)
 {
     SetStrictEncryption(true, false);
     // passwords mismatch
@@ -315,7 +354,7 @@ TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_None)
  * @fn TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_None)
  * @brief Test case #5.1
  */
-TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_None)
+TEST_F(TestStrictEncryption, Case_5_1_Strict_On_On_Pwd_None_None)
 {
     SetStrictEncryption(true, true);
     // passwords mismatch
@@ -329,7 +368,7 @@ TEST_F(TestStrictEncryption, Strict_On_On_Pwd_None_None)
  * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_None)
  * @brief Test case #5.2
  */
-TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_None)
+TEST_F(TestStrictEncryption, Case_5_2_Strict_On_Off_Pwd_None_None)
 {
     SetStrictEncryption(true, false);
     // passwords mismatch
@@ -344,7 +383,7 @@ TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_None)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_None)
  * @brief Test case #5.3
  */
-TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_None)
+TEST_F(TestStrictEncryption, Case_5_3_Strict_Off_On_Pwd_None_None)
 {
     SetStrictEncryption(false, true);
     // passwords mismatch
@@ -359,7 +398,7 @@ TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_None_None)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_None)
  * @brief Test case #5.4
  */
-TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_None)
+TEST_F(TestStrictEncryption, Case_5_4_Strict_Off_Off_Pwd_None_None)
 {
     SetStrictEncryption(false, false);
     // passwords mismatch
@@ -374,7 +413,7 @@ TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_None)
  * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Match)
  * @brief Test case #6
  */
-TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Match)
+TEST_F(TestStrictEncryption, Case_6_Strict_On_Off_Pwd_Set_Set_Match)
 {
     SetStrictEncryption(true, false);
     // passwords mismatch
@@ -389,7 +428,7 @@ TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Match)
  * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Mismatch)
  * @brief Test case #7
  */
-TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Mismatch)
+TEST_F(TestStrictEncryption, Case_7_Strict_On_Off_Pwd_Set_Set_Mismatch)
 {
     SetStrictEncryption(true, false);
     // passwords mismatch
@@ -402,9 +441,9 @@ TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_Set_Set_Mismatch)
 
 /** 
  * @fn TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_Set)
- * @brief Test case #8 A
+ * @brief Test case #8.1
  */
-TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_Set)
+TEST_F(TestStrictEncryption, Case_8_1_Strict_On_Off_Pwd_None_Set)
 {
     SetStrictEncryption(true, false);
     // passwords mismatch
@@ -417,9 +456,9 @@ TEST_F(TestStrictEncryption, Strict_On_Off_Pwd_None_Set)
 
 /** 
  * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_Set)
- * @brief Test case #8 B
+ * @brief Test case #8.2
  */
-TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_Set)
+TEST_F(TestStrictEncryption, Case_8_2_Strict_Off_Off_Pwd_None_Set)
 {
     SetStrictEncryption(false, false);
     // passwords mismatch
@@ -434,7 +473,7 @@ TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_None_Set)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Match)
  * @brief Test case #9
  */
-TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Match)
+TEST_F(TestStrictEncryption, Case_9_Strict_Off_On_Pwd_Set_Set_Match)
 {
     SetStrictEncryption(false, true);
     // passwords mismatch
@@ -449,7 +488,7 @@ TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Match)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Mismatch)
  * @brief Test case #10
  */
-TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Mismatch)
+TEST_F(TestStrictEncryption, Case_10_Strict_Off_On_Pwd_Set_Set_Mismatch)
 {
     SetStrictEncryption(false, true);
     // passwords mismatch
@@ -462,9 +501,9 @@ TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_Set_Mismatch)
 
 /** 
  * @fn TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_None)
- * @brief Test case #11 A
+ * @brief Test case #11.1
  */
-TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_None)
+TEST_F(TestStrictEncryption, Case_11_1_Strict_Off_On_Pwd_Set_None)
 {
     SetStrictEncryption(false, true);
     // passwords mismatch
@@ -477,9 +516,9 @@ TEST_F(TestStrictEncryption, Strict_Off_On_Pwd_Set_None)
 
 /** 
  * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_None)
- * @brief Test case #11 B
+ * @brief Test case #11.2
  */
-TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_None)
+TEST_F(TestStrictEncryption, Case_11_2_Strict_Off_Off_Pwd_Set_None)
 {
     SetStrictEncryption(false, false);
     // passwords mismatch
@@ -493,7 +532,7 @@ TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_None)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Match)
  * @brief Test case #12
  */
-TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Match)
+TEST_F(TestStrictEncryption, Case_12_Strict_Off_Off_Pwd_Set_Set_Match)
 {
     SetStrictEncryption(false, false);
     // passwords mismatch
@@ -507,7 +546,7 @@ TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Match)
  * @fn TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Mismatch)
  * @brief Test case #13
  */
-TEST_F(TestStrictEncryption, Strict_Off_Off_Pwd_Set_Set_Mismatch)
+TEST_F(TestStrictEncryption, Case_13_Strict_Off_Off_Pwd_Set_Set_Mismatch)
 {
     SetStrictEncryption(false, false);
     // passwords mismatch
