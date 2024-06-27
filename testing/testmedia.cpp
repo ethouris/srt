@@ -510,6 +510,12 @@ void SrtCommon::PrepareListener(string host, int port, int backlog)
         Error("srt_bind");
     }
 
+    // Accept hook must be installed BEFORE the call to srt_listen().
+    if (transmit_accept_hook_fn)
+    {
+        srt_listen_callback(m_bindsock, transmit_accept_hook_fn, transmit_accept_hook_op);
+    }
+
     Verb() << " listen... " << VerbNoEOL;
     stat = srt_listen(m_bindsock, backlog);
     if (stat == SRT_ERROR)
@@ -1431,7 +1437,7 @@ void SrtCommon::Error(string src, int reason, int force_result)
         else
             cerr << "\nERROR #" << result
                 << ": Connection rejected: [" << int(reason) << "]: "
-                << srt_rejectreason_str(reason);
+                << srt_rejectreason_str(reason) << endl;
     }
     else
     {
