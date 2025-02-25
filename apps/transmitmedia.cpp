@@ -998,6 +998,7 @@ public:
     UdpSource(string host, int port, const map<string,string>& attr)
     {
         Setup(host, port, attr);
+        Verb("UDP: Binding to ", sadr.str(), " for reading from ", host, ":", port);
         int stat = ::bind(m_sock, sadr.get(), sadr.size());
         if ( stat == -1 )
             Error(SysError(), "Binding address for UDP");
