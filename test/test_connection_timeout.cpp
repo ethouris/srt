@@ -1,4 +1,5 @@
 #include <chrono>
+#include <thread>
 #include <gtest/gtest.h>
 #include "test_env.h"
 
@@ -12,6 +13,7 @@ typedef int SOCKET;
 
 #include"platform_sys.h"
 #include "srt.h"
+#include "netinet_any.h"
 
 using namespace std;
 
@@ -168,20 +170,22 @@ TEST_F(TestConnectionTimeout, Nonblocking) {
 */
 TEST_F(TestConnectionTimeout, BlockingLoop)
 {
-    const SRTSOCKET client_sock = srt_create_socket();
-    ASSERT_GT(client_sock, 0);    // socket_id should be > 0
-
-    // Set connection timeout to 999 ms to reduce the test execution time.
-    // Also need to hit a time point between two threads:
-    // srt_connect will check TTL every second,
-    // CRcvQueue::worker will wait on a socket for 10 ms.
-    // Need to have a condition, when srt_connect will process the timeout.
-    const int connection_timeout_ms = 999;
-    EXPECT_EQ(srt_setsockopt(client_sock, 0, SRTO_CONNTIMEO, &connection_timeout_ms, sizeof connection_timeout_ms), SRT_SUCCESS);
-
     const sockaddr* psa = reinterpret_cast<const sockaddr*>(&m_sa);
+    const int connection_timeout_ms = 999;
     for (int i = 0; i < 10; ++i)
     {
+        const SRTSOCKET client_sock = srt_create_socket();
+        EXPECT_GT(client_sock, 0);    // socket_id should be > 0
+        if (client_sock <= 0)
+            break;
+
+        // Set connection timeout to 999 ms to reduce the test execution time.
+        // Also need to hit a time point between two threads:
+        // srt_connect will check TTL every second,
+        // CRcvQueue::worker will wait on a socket for 10 ms.
+        // Need to have a condition, when srt_connect will process the timeout.
+        EXPECT_EQ(srt_setsockopt(client_sock, 0, SRTO_CONNTIMEO, &connection_timeout_ms, sizeof connection_timeout_ms), SRT_SUCCESS);
+
         const chrono::steady_clock::time_point chrono_ts_start = chrono::steady_clock::now();
         EXPECT_EQ(srt_connect(client_sock, psa, sizeof m_sa), SRT_ERROR);
 
@@ -198,9 +202,74 @@ TEST_F(TestConnectionTimeout, BlockingLoop)
                 << error_code << " " << srt_getlasterror_str() << "\n";
             break;
         }
-    }
 
-    EXPECT_EQ(srt_close(client_sock), SRT_SUCCESS);
+        EXPECT_EQ(srt_close(client_sock), SRT_SUCCESS);
+    }
+}
+
+
+TEST(TestConnectionAPI, Accept)
+{
+    using namespace std::chrono;
+    using namespace srt;
+
+    srt_startup();
+
+    const SRTSOCKET caller_sock = srt_create_socket();
+    const SRTSOCKET listener_sock = srt_create_socket();
+
+    const int eidl = srt_epoll_create();
+    const int eidc = srt_epoll_create();
+    const int ev_conn = SRT_EPOLL_OUT | SRT_EPOLL_ERR;
+    srt_epoll_add_usock(eidc, caller_sock, &ev_conn);
+    const int ev_acp = SRT_EPOLL_IN | SRT_EPOLL_ERR;
+    srt_epoll_add_usock(eidl, listener_sock, &ev_acp);
+
+    sockaddr_any sa = srt::CreateAddr("localhost", 5555, AF_INET);
+
+    ASSERT_NE(srt_bind(listener_sock, sa.get(), sa.size()), -1);
+    ASSERT_NE(srt_listen(listener_sock, 1), -1);
+
+    // Set non-blocking mode so that you can wait for readiness
+    bool no = false;
+    srt_setsockflag(caller_sock, SRTO_RCVSYN, &no, sizeof no);
+    srt_setsockflag(listener_sock, SRTO_RCVSYN, &no, sizeof no);
+
+    srt_connect(caller_sock, sa.get(), sa.size());
+
+    SRT_EPOLL_EVENT ready[2];
+    int nready = srt_epoll_uwait(eidl, ready, 2, 1000); // Wait 1s
+    EXPECT_EQ(nready, 1);
+    EXPECT_EQ(ready[0].fd, listener_sock);
+    // EXPECT_EQ(ready[0].events, SRT_EPOLL_IN);
+
+    // Now call the accept function incorrectly
+    int size = 0;
+    sockaddr_storage saf;
+
+    EXPECT_EQ(srt_accept(listener_sock, (sockaddr*)&saf, &size), SRT_ERROR);
+
+    std::this_thread::sleep_for(seconds(1));
+
+    // Set correctly
+    size = sizeof (sockaddr_in6);
+    EXPECT_NE(srt_accept(listener_sock, (sockaddr*)&saf, &size), SRT_ERROR);
+
+    // Ended up with error, but now you should also expect error on the caller side.
+
+    // Wait 5s until you get a connection broken.
+    nready = srt_epoll_uwait(eidc, ready, 2, 5000);
+    EXPECT_EQ(nready, 1);
+    if (nready == 1)
+    {
+        // Do extra checks only if you know that this was returned.
+        EXPECT_EQ(ready[0].fd, caller_sock);
+        EXPECT_EQ(ready[0].events & SRT_EPOLL_ERR, 0u);
+    }
+    srt_close(caller_sock);
+    srt_close(listener_sock);
+
+    srt_cleanup();
 }
 
 

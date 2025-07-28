@@ -222,8 +222,8 @@ By contributing code to the SRT project, you agree to license your contribution 
 [Vcpkg-package]: https://repology.org/project/srt/versions
 [Vcpkg-badge]: https://repology.org/badge/version-for-repo/vcpkg/srt.svg
 
-[ConanCenter-package]: https://repology.org/project/srt/versions
-[ConanCenter-badge]: https://repology.org/badge/version-for-repo/conancenter/srt.svg
+[ConanCenter-package]: https://conan.io/center/recipes/srt
+[ConanCenter-badge]: https://img.shields.io/conan/v/srt
 
 [codecov-project]: https://codecov.io/gh/haivision/srt
 [codecov-badge]: https://codecov.io/gh/haivision/srt/branch/master/graph/badge.svg
