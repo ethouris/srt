@@ -12017,8 +12017,7 @@ int64_t srt::CUDT::socketStartTime(SRTSOCKET u)
     if (!s)
         return APIError(MJ_NOTSUP, MN_SIDINVAL).as<int>();
 
-    const time_point& start_time = s->core().m_stats.tsStartTime;
-    return count_microseconds(start_time.time_since_epoch());
+    return count_microseconds(s->core().socketStartTime().time_since_epoch());
 }
 
 bool srt::CUDT::runAcceptHook(CUDT *acore, const sockaddr* peer, const CHandShake& hs, const CPacket& hspkt)
