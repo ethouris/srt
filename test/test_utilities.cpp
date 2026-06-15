@@ -308,7 +308,7 @@ static void TestAckWindow(const std::array<AckData, 5>& data, size_t initpos, co
 
     ASSERT_EQ(ackwindow.first().iJournal, data[0].journal) << " (" << casename << ")";
     ASSERT_EQ(ackwindow.last().iJournal, data[4].journal) << " (" << casename << ")";
-    ASSERT_EQ(ackwindow.size(), 5) << " (" << casename << ")";
+    ASSERT_EQ(ackwindow.size(), size_t(5)) << " (" << casename << ")";
 
     int iack = 0;
     int td =0;
