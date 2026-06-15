@@ -317,21 +317,21 @@ static void TestAckWindow(const std::array<AckData, 5>& data, size_t initpos, co
     ACKWindow::Status stat = ackwindow.acknowledge(data[0].journal, now, (iack), (td));
     EXPECT_EQ(iack, data[0].ackseq) << " (" << casename << ")";
     EXPECT_EQ(stat, ACKWindow::OK) << " (" << casename << ")";
-    EXPECT_EQ(ackwindow.size(), 4) << " (" << casename << ")";
+    EXPECT_EQ(ackwindow.size(), size_t(4)) << " (" << casename << ")";
     EXPECT_EQ(ackwindow.first().iJournal, data[1].journal) << " (" << casename << ")";
 
     // Now remove the node +2
     stat = ackwindow.acknowledge(data[2].journal, now, (iack), (td));
     EXPECT_EQ(iack, data[2].ackseq) << " (" << casename << ")";
     EXPECT_EQ(stat, ACKWindow::OK) << " (" << casename << ")";
-    EXPECT_EQ(ackwindow.size(), 2) << " (" << casename << ")";
+    EXPECT_EQ(ackwindow.size(), size_t(2)) << " (" << casename << ")";
     EXPECT_EQ(ackwindow.first().iJournal, data[3].journal) << " (" << casename << ")";
 
     // Now remove too old node
     stat = ackwindow.acknowledge(data[1].journal, now, (iack), (td));
     EXPECT_EQ(stat, ACKWindow::OLD) << "(" << casename << ")";
     // Like above - no changes were expected
-    EXPECT_EQ(ackwindow.size(), 2) << " (" << casename << ")";
+    EXPECT_EQ(ackwindow.size(), size_t(2)) << " (" << casename << ")";
     EXPECT_EQ(ackwindow.first().iJournal, data[3].journal) << " (" << casename << ")";
 
     // And remove the node that wasn't inserted
@@ -339,7 +339,7 @@ static void TestAckWindow(const std::array<AckData, 5>& data, size_t initpos, co
     stat = ackwindow.acknowledge(wrongnode, now, (iack), (td));
     EXPECT_EQ(stat, ACKWindow::ROGUE);
     // Like above - no changes were expected
-    EXPECT_EQ(ackwindow.size(), 2) << " (" << casename << ")";
+    EXPECT_EQ(ackwindow.size(), size_t(2)) << " (" << casename << ")";
     EXPECT_EQ(ackwindow.first().iJournal, data[3].journal) << " (" << casename << ")";
 
     // Now insert one value that jumps over. It's not exactly
