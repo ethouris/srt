@@ -113,22 +113,22 @@ TEST(CircularBuffer, Overall)
 
     IF_HEAVY_LOGGING(cerr << "After adding 3 elements: size=" << buf.size() << " capacity=" << buf.capacity() << ":\n");
     IF_HEAVY_LOGGING(ShowCircularBuffer(buf));
-    ASSERT_EQ(buf.size(), 3);
+    ASSERT_EQ(buf.size(), size_t(3));
 
     IF_HEAVY_LOGGING(cerr << "Adding element at position 5:\n");
     EXPECT_TRUE(buf.set(5, 15.5));
     IF_HEAVY_LOGGING(ShowCircularBuffer(buf));
-    ASSERT_EQ(buf.size(), 6);
+    ASSERT_EQ(buf.size(), size_t(6));
 
     IF_HEAVY_LOGGING(cerr << "Adding element at position 7 (should fail):\n");
     EXPECT_FALSE(buf.set(7, 10.0));
     IF_HEAVY_LOGGING(ShowCircularBuffer(buf));
-    ASSERT_EQ(buf.size(), 6);
+    ASSERT_EQ(buf.size(), size_t(6));
 
     IF_HEAVY_LOGGING(cerr << "Dropping first 2 elements:\n");
     buf.drop(2);
     IF_HEAVY_LOGGING(ShowCircularBuffer(buf));
-    ASSERT_EQ(buf.size(), 4);
+    ASSERT_EQ(buf.size(), size_t(4));
 
     IF_HEAVY_LOGGING(cerr << "Adding again element at position 6 (should roll):\n");
     buf.set(6, 22.1);
@@ -193,7 +193,7 @@ TEST(CircularBuffer, Overall)
         EXPECT_TRUE(buf.set(offset, 99.1, true));
 
         // size() - 1 is the latest possible offset
-        ASSERT_EQ(buf.size() - 1 + dropshift, 9);
+        ASSERT_EQ(buf.size() - 1 + dropshift, size_t(9));
     }
     else
     {
