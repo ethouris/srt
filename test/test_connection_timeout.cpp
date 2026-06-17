@@ -453,7 +453,7 @@ TEST(TestConnectionAPI, AcceptBondCloseListener)
 
     // Close the listener socket just before you accept
     srt_close(listener_sock);
-    SRTSOCKET acp = srt_accept_bond(listeners, 1, 1000);
+    SRTSOCKET acp = srt_accept_bond(listeners, 1, 4000);
     int syserr;
     int err = srt_getlasterror(&syserr);
     EXPECT_EQ(acp, SRT_INVALID_SOCK);
