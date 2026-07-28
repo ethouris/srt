@@ -122,6 +122,8 @@ jobs:
     - name: abi-check
       run: |
         TOP=$PWD
+        echo "FILESYSTEM state before any action at $PWD"
+        ls -l
         #git clone https://github.com/lvc/abi-compliance-checker.git
         cd gitview_pr
         cd submodules
