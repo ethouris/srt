@@ -38,7 +38,7 @@ jobs:
         ulimit -c unlimited
         cd _build && ctest --extra-verbose
         SUCCESS=$?
-        if [ -f core.test-srt ]; then cd _build && gdb -batch ./test-srt -c core.test-srt -ex bt -ex "info thread" -ex quit; else echo "NO CORE - NO CRY!"; fi;
+        if [ -f core.test-srt ]; then gdb -batch ./test-srt -c core.test-srt -ex bt -ex "info thread" -ex quit; else echo "NO CORE - NO CRY!"; fi;
         test $SUCCESS == 0;
     - name: codecov
       uses: codecov/codecov-action@v4
