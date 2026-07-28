@@ -36,6 +36,7 @@ jobs:
         cd gitview_pr
         git submodule update --init submodules/abi-compliance-checker
         STAT=$(git submodule status submodules/abi-compliance-checker)
+        echo "abi-compilance-checker REVISION: $STAT"
         ABI_CHECKER_ASH=${STAT[0]}
         echo "ABI_CHECKER_ASH=$ABI_CHECKER_ASH" >> "$GITHUB_OUTPUT"
         cd _build && cmake --build ./
@@ -55,6 +56,9 @@ jobs:
             echo "WILL CHECK ABI changes $SRT_BASE - $SRT_TAG_VERSION"
             echo "SRT_BASE=$SRT_BASE" >> "$GITHUB_OUTPUT"
         fi
+        echo "--- GITHUB_OUTPUT ---"
+        cat $GITHUB_OUTPUT
+        echo "---------------------"
     - id: upload_pr_dump
       uses: actions/upload-artifact@v4
       with:
