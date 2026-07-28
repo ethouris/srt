@@ -37,6 +37,7 @@ jobs:
         git submodule update --init submodules/abi-compliance-checker
         STAT=$(git submodule status submodules/abi-compliance-checker)
         ABI_CHECKER_ASH=${STAT[0]}
+        echo "ABI_CHECKER_ASH=$ABI_CHECKER_ASH" >> "$GITHUB_OUTPUT"
         cd _build && cmake --build ./
         make install DESTDIR=./installdir
         SRT_TAG_VERSION=v$(../scripts/get-build-version.tcl full)
