@@ -141,7 +141,7 @@ jobs:
       with:
         name: abi-compliance-report
         path: compat_reports
-   - name: Generate HTML Preview Link
+    - name: Generate HTML Preview Link
       id: preview
       uses: actions/html-preview@v5
       with:
