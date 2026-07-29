@@ -19,10 +19,13 @@ jobs:
     - uses: actions/checkout@v3
     - name: prepare
       run: |
+        sudo apt update
         RUNON=${{ matrix.machine }}
         if [[ $RUNON == ubuntu-latest ]]; then
             sudo apt install -y gdb
         fi
+        sudo apt install -y tcl cmake
+        [[ $RUNON == ubuntu-24.04-arm ]] || sudo apt install libssl-dev
     - name: configure
       run: |
         RUNON=${{ matrix.machine }}

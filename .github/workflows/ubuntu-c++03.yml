@@ -19,9 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: prepare
+      run: |
+        sudo apt update
+        sudo apt install -y tcl cmake libssl-dev gdb
     - name: configure
       run: |
-        sudo apt install -y tcl cmake libssl-dev gdb
         mkdir _build && cd _build
         cmake ../ -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STDCXX_SYNC=OFF -DUSE_CXX_STD=03 -DENABLE_ENCRYPTION=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=${{ matrix.bonding }} -DENABLE_TESTING=ON -DENABLE_EXAMPLES=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DENABLE_LOGGING=${{ matrix.logging }}
     - name: build
