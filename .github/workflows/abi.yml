@@ -131,22 +131,22 @@ jobs:
         sha256sum libsrt-pr.dump
         RES=0
         abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump || RES=$?
+        # Flatten the report for download-preview
+        cd compat_reports
+        REPORT=$(find . -name *.html)
+        cp $REPORT compat_report.html
+        cd ..
         if (( $RES != 0 )); then
            echo "ABI/API Compatibility check failed with value $?"
            echo "RES=$RES" >>$GITHUB_ENV
            exit 0
         fi
     - name: Download report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: abi-compliance-report
-        path: compat_reports
-    - name: Create Browser Link
-      uses: github-actions-artifacts-redirector/action@v1
-      with:
-        artifact-name: abi-compliance-report 
-    - name: Output the browser link
-      run: echo "View report here -> ${{ steps.preview.outputs.preview_url }}"
+        path: compat_reports/compat_report.html
+        archive: false
     - name: Final result
       run: |
         echo "Final result: $RES"
