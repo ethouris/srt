@@ -129,8 +129,8 @@ jobs:
         ls -l
         sha256sum libsrt-base.dump
         sha256sum libsrt-pr.dump
-        abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump
-        RES=$?
+        RES=0
+        abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump || RES=$?
         if (( $RES != 0 )); then
            echo "ABI/API Compatibility check failed with value $?"
            echo "RES=$RES" >>$GITHUB_ENV
