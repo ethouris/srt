@@ -133,9 +133,14 @@ jobs:
         RES=$?
         if (( $RES != 0 )); then
            echo "ABI/API Compatibility check failed with value $?"
-           exit $RES
+           echo "RES=$RES" >>$GITHUB_ENV
+           exit 0
         fi
     - name: Download report
       uses: actions/download-artifact@v4
       with:
         path: compat_reports
+    - name: Final result
+      run: |
+        echo "Final result: $RES"
+        exit $RES
