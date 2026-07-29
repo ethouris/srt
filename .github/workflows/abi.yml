@@ -141,11 +141,10 @@ jobs:
       with:
         name: abi-compliance-report
         path: compat_reports
-    - name: Generate HTML Preview Link
-      id: preview
-      uses: actions/html-preview@v5
+    - name: Create Browser Link
+      uses: github-actions-artifacts-redirector/action@v1
       with:
-        source_dir: compat_reports
+        artifact-name: abi-compliance-report 
     - name: Output the browser link
       run: echo "View report here -> ${{ steps.preview.outputs.preview_url }}"
     - name: Final result
