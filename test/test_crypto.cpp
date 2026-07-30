@@ -7,14 +7,15 @@
 #include "gtest/gtest.h"
 #include "test_env.h"
 
+#ifdef SRT_ENABLE_ENCRYPTION
+
+
 #include "crypto.h"
 #include "handshake.h"
 #include "hcrypt_msg.h"
 #include "hcrypt.h" // Imports the CRYSPR_HAS_AESGCM definition.
 #include "socketconfig.h"
 #include "api.h"
-
-#ifdef SRT_ENABLE_ENCRYPTION
 
 // processSrtMsg_KMRSP must reject malformed wire-supplied lengths before they
 // reach the fixed-size stack buffer / uninitialised-read paths inside the

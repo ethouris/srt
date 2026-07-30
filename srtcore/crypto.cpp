@@ -946,6 +946,7 @@ srt::EncryptionStatus srt::CCryptoControl::decrypt(CPacket& w_packet SRT_ATR_UNU
     HLOGC(cnlog.Debug, log << "decrypt: successfully decrypted, resulting length=" << rc);
     return ENCS_CLEAR;
 #else
+    (void)m_bErrorReported; // otherwise warning!
     return ENCS_NOTSUP;
 #endif
 }
