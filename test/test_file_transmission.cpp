@@ -344,6 +344,7 @@ TEST(Transmission, FileUploadInterrupted)
     std::vector<char> buf(1456);
 
     std::cout << "Reading file and sending...\n";
+    bool stop = false;
     for (;;)
     {
         size_t n = ifile.read(buf.data(), 1456).gcount();
@@ -354,6 +355,7 @@ TEST(Transmission, FileUploadInterrupted)
             if (st == SRT_ERROR)
             {
                 std::cout << "SEND ERROR: " << srt_getlasterror_str() << " - ignoring.\n";
+                stop = true;
                 break;
             }
 
@@ -361,7 +363,7 @@ TEST(Transmission, FileUploadInterrupted)
             shift += st;
         }
 
-        if (ifile.eof())
+        if (ifile.eof() || stop)
         {
             break;
         }
