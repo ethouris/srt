@@ -608,8 +608,6 @@ struct CMultiplexer
 
     ~CMultiplexer()
     {
-        stop(); // XXX EXPERIMENTAL
-
         if (m_pRcvQueue != NULL)
             delete m_pRcvQueue;
         if (m_pSndQueue != NULL)
