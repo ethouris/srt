@@ -239,8 +239,14 @@ int srt_startup(void);
 This function shall be called at the start of an application that uses the SRT
 library. It provides all necessary platform-specific initializations, sets up
 global data, and starts the SRT GC thread. If this function isn't explicitly
-called, it will be called automatically when creating the first socket. However,
-relying on this behavior is strongly discouraged.
+called, it will be called automatically when creating the first socket.
+
+NOTE 1: It is strongly recommended that you don't rely on the automatic
+initialization and call this function explicitly. The initialization is
+required to be done in the main thread of the application, so the application
+shall ensure it is done this way before creating the first socket.
+
+NOTE 2: Initialization can be nested - see details in `srt_cleaup()`.
 
 |      Returns                  |                                                                 |
 |:----------------------------- |:--------------------------------------------------------------- |
@@ -265,22 +271,58 @@ int srt_cleanup(void);
 ```
 
 This function cleans up all global SRT resources and shall be called just before
-exiting the application that uses the SRT library. This cleanup function will still
-be called from the C++ global destructor, if not called by the application, although
-relying on this behavior is strongly discouraged.
+exiting the `main()` function of the application that uses the SRT library
+(also intermediately). The cleanup action will still be called from the C++
+global destructor, although relying on this is strongly discouraged.
 
 **IMPORTANT NOTES**:
 
-1. This function must be called from within `main()`, preferably at the end.
-Calling it from any C++ global destructor is pointless, as SRT does it by
-itself. But relying on it is strongly discouraged - at best only if you are
-completely certain that all resources in the application are maintained in the
-strict creation-destruction order, including threads. If this condition isn't
-satisfied, then the behavior of the cleanup outside of `main()` is undefined.
+1. This function must be called from within `main()`, otherwise the behavior
+is undefined. Calling it from locations such as C++ global destructor, or
+other thread than the main application's thread, may cause unpredictable
+behavior, result in crashes or deadlocks. If it is by some reason not possible
+to call this function at the right execution point, it's safer to rely on
+the automatic cleanup of SRT, even though it's still discouraged.
 
 2. The startup/cleanup calls have an instance counter.  This means that if you
 call [`srt_startup`](#srt_startup) multiple times, you need to call the
 `srt_cleanup` function exactly the same number of times.
+
+**KNOWN ISSUES**:
+
+1. There's a known problem in Microsoft CRT, which uses a specific way of
+cleanup for an application that uses libraries bound as DLL. In this case all
+threads of the application - including those created by DLL libraries - are
+being forcefully terminated before the global C++ destructors are running. In
+SRT it means that threads are stopped before they can do their part of the
+cleanup, which can result in leaks, and if the `srt_cleanup()` is called from
+such a global destructor, it may also result in deadlocks or crashes.
+
+Therefore in case of Microsoft Windows (including Cygwin) you should do one
+of the following:
+
+- Do not call `srt_cleanup()` and rely on the automatic destruction. Mind
+though that the application must ensure that no SRT socket is leaked without
+closing, otherwise this will result in a deadlock. Also, if there remain any
+SRT sockets not cleaned up by GC at the destruction time, these resources
+will leak - although if this is at the application's exit, system will reclaim
+it anyway.
+
+- Call `srt_cleanup()` anyhow (even indirectly through some cleanup-specific
+facility) and make sure this is called from the application's `main()`
+execution point. In case of Microsoft CRT this means in practice to call the
+destruction before Microsoft CRT does partial destruction and breaks the
+cleanup chain.
+
+2. The `fork()` POSIX function causes creation of an application's duplicate,
+just without any threads other than the main one. This means that the data
+structures can be caught in the half-torn state and because of that the cleanup
+after fork is done forceful way (all the remaining socket objects are deleted
+while assuming that no threads are running). It is recommended that if you
+want to use `fork()` in your application, call it before creating any SRT
+socket.
+
+
 
 |      Returns                  |                                                                 |
 |:----------------------------- |:--------------------------------------------------------------- |
