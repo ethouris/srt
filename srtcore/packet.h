@@ -373,6 +373,7 @@ public:
 
     // Can also be calculated as: sizeof(struct ether_header) + sizeof(struct ip) + sizeof(struct udphdr).
     static const size_t UDP_HDR_SIZE = 28; // 20 bytes IPv4 + 8 bytes of UDP { u16 sport, dport, len, csum }.
+    static const size_t UDP_HDR_SIZE_IPv6 = 40; // 32 bytes IPv6 + 8 bytes UDP
 
     static const size_t SRT_DATA_HDR_SIZE = UDP_HDR_SIZE + HDR_SIZE;
 

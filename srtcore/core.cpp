@@ -1042,17 +1042,17 @@ string srt::CUDT::getstreamid(SRTSOCKET u)
 void srt::CUDT::clearData()
 {
     const size_t full_hdr_size = CPacket::UDP_HDR_SIZE - CPacket::HDR_SIZE;
-    m_iMaxSRTPayloadSize = m_config.iMSS - full_hdr_size;
-    HLOGC(cnlog.Debug, log << CONID() << "clearData: PAYLOAD SIZE: " << m_iMaxSRTPayloadSize);
+    m_iMaxDataPayloadSize = m_config.iMSS - full_hdr_size;
+    HLOGC(cnlog.Debug, log << CONID() << "clearData: PAYLOAD SIZE: " << m_iMaxDataPayloadSize);
 
-    m_SndTimeWindow.initialize(full_hdr_size, m_iMaxSRTPayloadSize);
-    m_RcvTimeWindow.initialize(full_hdr_size, m_iMaxSRTPayloadSize);
+    m_SndTimeWindow.initialize(full_hdr_size, m_iMaxDataPayloadSize);
+    m_RcvTimeWindow.initialize(full_hdr_size, m_iMaxDataPayloadSize);
 
     m_iEXPCount  = 1;
     m_iBandwidth = 1; // pkts/sec
     // XXX use some constant for this 16
     m_iDeliveryRate     = 16;
-    m_iByteDeliveryRate = 16 * m_iMaxSRTPayloadSize;
+    m_iByteDeliveryRate = 16 * m_iMaxDataPayloadSize;
     m_iAckSeqNo         = 0;
     m_tsLastAckTime     = steady_clock::now();
 
@@ -1822,7 +1822,7 @@ bool srt::CUDT::createSrtHandshake(
 
     // Now use the original function to store the actual SRT_HS data
     // ra_size after that
-    // NOTE: so far, ra_size is m_iMaxSRTPayloadSize expressed in number of elements.
+    // NOTE: so far, ra_size is controlPayloadSize() expressed in number of elements.
     // WILL BE CHANGED HERE.
     ra_size   = fillSrtHandshake((p + offset), total_ra_size - offset, srths_cmd, HS_VERSION_SRT1);
     *pcmdspec = HS_CMDSPEC_CMD::wrap(srths_cmd) | HS_CMDSPEC_SIZE::wrap((uint32_t) ra_size);
@@ -1837,7 +1837,7 @@ bool srt::CUDT::createSrtHandshake(
         // Now prepare the string with 4-byte alignment. The string size is limited
         // to half the payload size. Just a sanity check to not pack too much into
         // the conclusion packet.
-        size_t size_limit = m_iMaxSRTPayloadSize / 2;
+        size_t size_limit = controlPayloadSize() / 2;
 
         if (m_config.sStreamName.size() >= size_limit)
         {
@@ -3792,7 +3792,8 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
     // Inform the server my configurations.
     CPacket reqpkt;
     reqpkt.setControl(UMSG_HANDSHAKE);
-    reqpkt.allocate(m_iMaxSRTPayloadSize);
+    size_t hs_size = controlPayloadSize(serv_addr.family());
+    reqpkt.allocate(hs_size);
     // XXX NOTE: Now the memory for the payload part is allocated automatically,
     // and such allocated memory is also automatically deallocated in the
     // destructor. If you use CPacket::allocate, remember that you must not:
@@ -3807,7 +3808,6 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
     // ID = 0, connection request
     reqpkt.set_id(0);
 
-    size_t hs_size = m_iMaxSRTPayloadSize;
     m_ConnReq.store_to((reqpkt.m_pcData), (hs_size));
 
     // Note that CPacket::allocate() sets also the size
@@ -3864,7 +3864,7 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
     // next incoming packet.
     CPacket response;
     response.setControl(UMSG_HANDSHAKE);
-    response.allocate(m_iMaxSRTPayloadSize);
+    response.allocate(controlPayloadSize(serv_addr.family()));
 
     CUDTException  e;
     EConnectStatus cst = CONN_CONTINUE;
@@ -3916,7 +3916,7 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
         }
 
         cst = CONN_CONTINUE;
-        response.setLength(m_iMaxSRTPayloadSize);
+        response.setLength(controlPayloadSize(serv_addr.family()));
         if (m_pRcvQueue->recvfrom(m_SocketID, (response)) > 0)
         {
             use_source_adr = response.udpDestAddr();
@@ -3969,7 +3969,7 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
                         m_RejectReason = SRT_REJ_ROGUE;
 
                     // rejection or erroneous code.
-                    reqpkt.setLength(m_iMaxSRTPayloadSize);
+                    reqpkt.setLength(controlPayloadSize(serv_addr.family()));
                     reqpkt.setControl(UMSG_HANDSHAKE);
                     sendRendezvousRejection(serv_addr, (reqpkt));
                 }
@@ -3997,12 +3997,12 @@ void srt::CUDT::startConnect(const sockaddr_any& serv_addr, int32_t forced_isn)
             // Now serialize the handshake again to the existing buffer so that it's
             // then sent later in this loop.
 
-            // First, set the size back to the original size, m_iMaxSRTPayloadSize because
+            // First, set the size back to the original size, controlPayloadSize() because
             // this is the size of the originally allocated space. It might have been
             // shrunk by serializing the INDUCTION handshake (which was required before
             // sending this packet to the output queue) and therefore be too
             // small to store the CONCLUSION handshake (with HSv5 extensions).
-            reqpkt.setLength(m_iMaxSRTPayloadSize);
+            reqpkt.setLength(controlPayloadSize(serv_addr.family()));
 
             HLOGC(cnlog.Debug,
                   log << CONID() << "startConnect: creating HS CONCLUSION: buffer size=" << reqpkt.getLength());
@@ -4132,7 +4132,7 @@ bool srt::CUDT::processAsyncConnectRequest(EReadStatus         rst,
 
     CPacket reqpkt;
     reqpkt.setControl(UMSG_HANDSHAKE);
-    reqpkt.allocate(m_iMaxSRTPayloadSize);
+    reqpkt.allocate(controlPayloadSize(serv_addr.family()));
     const steady_clock::time_point now = steady_clock::now();
     setPacketTS(reqpkt, now);
 
@@ -4450,7 +4450,7 @@ EConnectStatus srt::CUDT::processRendezvous(
     m_ConnReq.m_iReqType  = rsp_type;
     m_ConnReq.m_extension = needs_extension;
 
-    // This must be done before prepareConnectionObjects(), because it sets ISN and m_iMaxSRTPayloadSize needed to create buffers.
+    // This must be done before prepareConnectionObjects(), because it sets ISN needed to create buffers.
     if (!applyResponseSettings(pResponse))
     {
         LOGC(cnlog.Error, log << CONID() << "processRendezvous: peer settings rejected");
@@ -4514,7 +4514,7 @@ EConnectStatus srt::CUDT::processRendezvous(
               log << CONID()
                   << "processRendezvous: HSREQ extension ok, creating HSRSP response. kmdatasize=" << kmdatasize);
 
-        w_reqpkt.setLength(m_iMaxSRTPayloadSize);
+        w_reqpkt.setLength(controlPayloadSize(serv_addr.family()));
         if (!createSrtHandshake(SRT_CMD_HSRSP, SRT_CMD_KMRSP,
                     kmdata, kmdatasize,
                     (w_reqpkt), (m_ConnReq)))
@@ -4591,7 +4591,7 @@ EConnectStatus srt::CUDT::processRendezvous(
     // serialization.
     m_ConnReq.m_extension = needs_extension;
 
-    w_reqpkt.setLength(m_iMaxSRTPayloadSize);
+    w_reqpkt.setLength(controlPayloadSize(serv_addr.family()));
     if (m_RdvState == CHandShake::RDV_CONNECTED)
     {
         int cst = postConnect(pResponse, true, 0);
@@ -4934,6 +4934,24 @@ EConnectStatus srt::CUDT::processConnectResponse(const CPacket& response, CUDTEx
     return postConnect(&response, false, eout);
 }
 
+static size_t MinimumMSS(int family)
+{
+    const size_t full_hdr_size = CPacket::UDP_HDR_SIZE + CPacket::HDR_SIZE;
+    const size_t full_hdr_size_i6 = CPacket::UDP_HDR_SIZE_IPv6 + CPacket::HDR_SIZE;
+
+    size_t min_mss_size = 4; // initial: required for passing any data
+    if (family == AF_INET6)
+    {
+        min_mss_size += full_hdr_size_i6;
+    }
+    else
+    {
+        min_mss_size += full_hdr_size;
+    }
+
+    return min_mss_size;
+}
+
 bool srt::CUDT::applyResponseSettings(const CPacket* pHspkt /*[[nullable]]*/) ATR_NOEXCEPT
 {
     if (!m_ConnRes.valid())
@@ -4947,12 +4965,10 @@ bool srt::CUDT::applyResponseSettings(const CPacket* pHspkt /*[[nullable]]*/) AT
     m_config.iMSS        = m_ConnRes.m_iMSS;
 
     const size_t full_hdr_size = CPacket::UDP_HDR_SIZE + CPacket::HDR_SIZE;
-    m_iMaxSRTPayloadSize = m_config.iMSS - full_hdr_size;
-    HLOGC(cnlog.Debug, log << CONID() << "applyResponseSettings: PAYLOAD SIZE: " << m_iMaxSRTPayloadSize);
+    m_iMaxDataPayloadSize = m_config.iMSS - full_hdr_size;
+    HLOGC(cnlog.Debug, log << CONID() << "applyResponseSettings: PAYLOAD SIZE: " << m_iMaxDataPayloadSize);
 
     m_iFlowWindowSize    = m_ConnRes.m_iFlightFlagSize;
-    const int udpsize    = m_config.iMSS - CPacket::UDP_HDR_SIZE;
-    m_iMaxSRTPayloadSize = udpsize - CPacket::HDR_SIZE;
     m_iPeerISN           = m_ConnRes.m_iISN;
 
     setInitialRcvSeq(m_iPeerISN);
@@ -4964,7 +4980,7 @@ bool srt::CUDT::applyResponseSettings(const CPacket* pHspkt /*[[nullable]]*/) AT
         m_SourceAddr = pHspkt->udpDestAddr();
 
     HLOGC(cnlog.Debug,
-          log << CONID() << "applyResponseSettings: HANDSHAKE CONCLUDED. SETTING: payload-size=" << m_iMaxSRTPayloadSize
+          log << CONID() << "applyResponseSettings: HANDSHAKE CONCLUDED. SETTING: payload-size=" << m_iMaxDataPayloadSize
               << " mss=" << m_ConnRes.m_iMSS << " flw=" << m_ConnRes.m_iFlightFlagSize << " peer-ISN=" << m_ConnRes.m_iISN
               << " local-ISN=" << m_iISN
               << " peerID=" << m_ConnRes.m_iID
@@ -5943,16 +5959,17 @@ bool srt::CUDT::prepareBuffers(CUDTException* eout)
     
     try
     {
-        // CryptoControl has to be initialized and in case of RESPONDER the KM REQ must be processed (interpretSrtHandshake(..)) for the crypto mode to be deduced.
+        // CryptoControl has to be initialized and in case of RESPONDER
+        // the KM REQ must be processed (interpretSrtHandshake(..)) for the crypto mode to be deduced.
         const int authtag = getAuthTagSize();
 
-        SRT_ASSERT(m_iMaxSRTPayloadSize != 0);
+        SRT_ASSERT(m_iMaxDataPayloadSize != 0);
 
-        HLOGC(rslog.Debug, log << CONID() << "Creating buffers: snd-plsize=" << m_iMaxSRTPayloadSize
+        HLOGC(rslog.Debug, log << CONID() << "Creating buffers: snd-plsize=" << m_iMaxDataPayloadSize
                 << " snd-bufsize=" << 32
                 << " authtag=" << authtag);
 
-        m_pSndBuffer = new CSndBuffer(AF_INET, 32, m_iMaxSRTPayloadSize, authtag);
+        m_pSndBuffer = new CSndBuffer(AF_INET, 32, m_iMaxDataPayloadSize, authtag);
         SRT_ASSERT(m_iPeerISN != -1);
         m_pRcvBuffer = new srt::CRcvBuffer(m_iPeerISN, m_config.iRcvBufSize, m_pRcvQueue->m_pUnitQueue, m_config.bMessageAPI);
         // After introducing lite ACK, the sndlosslist may not be cleared in time, so it requires twice a space.
@@ -5997,13 +6014,23 @@ void srt::CUDT::acceptAndRespond(const sockaddr_any& agent, const sockaddr_any& 
 
     m_tsRcvPeerStartTime = steady_clock::time_point(); // will be set correctly at SRT HS
 
-    // Uses the smaller MSS between the peers
-    m_config.iMSS = std::min(m_config.iMSS, w_hs.m_iMSS);
-
     const size_t full_hdr_size = CPacket::UDP_HDR_SIZE + CPacket::HDR_SIZE;
-    m_iMaxSRTPayloadSize = m_config.iMSS - full_hdr_size;
+    // Uses the smaller MSS between the peers
+    size_t mss_size = std::min(m_config.iMSS, w_hs.m_iMSS);
+    if (mss_size < MinimumMSS(peer.family()))
+    {
+        HLOGC(cnlog.Debug, log << CONID() << "acceptAndRespond: peer's MSS=" << w_hs.m_iMSS
+                << " is too small, can't accept the connection");
+        m_RejectReason = SRT_REJ_ROGUE;
+        w_hs.m_iReqType = URQFailure(m_RejectReason);
+        throw CUDTException(MJ_SETUP, MN_REJECTED, 0);
+    }
 
-    HLOGC(cnlog.Debug, log << CONID() << "acceptAndRespond: PAYLOAD SIZE: " << m_iMaxSRTPayloadSize);
+    m_config.iMSS = mss_size;
+
+    m_iMaxDataPayloadSize = m_config.iMSS - full_hdr_size;
+
+    HLOGC(cnlog.Debug, log << CONID() << "acceptAndRespond: PAYLOAD SIZE: " << m_iMaxDataPayloadSize);
 
     // exchange info for maximum flow window size
     m_iFlowWindowSize = w_hs.m_iFlightFlagSize;
@@ -6025,7 +6052,6 @@ void srt::CUDT::acceptAndRespond(const sockaddr_any& agent, const sockaddr_any& 
     CIPAddress::pton((m_parent->m_SelfAddr), m_piSelfIP, peer);
 
     rewriteHandshakeData(peer, (w_hs));
-
 
     // Prepare all structures
     if (!prepareConnectionObjects(w_hs, HSD_DRAW, 0))
@@ -6154,7 +6180,7 @@ void srt::CUDT::acceptAndRespond(const sockaddr_any& agent, const sockaddr_any& 
     // TODO: Here create CONCLUSION RESPONSE with:
     // - just the UDT handshake, if HS_VERSION_UDT4,
     // - if higher, the UDT handshake, the SRT HSRSP, the SRT KMRSP.
-    size_t size = m_iMaxSRTPayloadSize;
+    size_t size = controlPayloadSize(peer.family());
     // Allocate the maximum possible memory for an SRT payload.
     // This is a maximum you can send once.
     CPacket rsppkt;
@@ -6934,11 +6960,11 @@ int srt::CUDT::sendmsg2(const char *data, int len, SRT_MSGCTRL& w_mctrl)
     //   out a message of a length that exceeds the total size of the sending
     //   buffer (configurable by SRTO_SNDBUF).
 
-    if (m_config.bMessageAPI && len > int(m_config.iSndBufSize * m_iMaxSRTPayloadSize))
+    if (m_config.bMessageAPI && len > int(m_config.iSndBufSize * m_iMaxDataPayloadSize))
     {
         LOGC(aslog.Error,
              log << CONID() << "Message length (" << len << ") exceeds the size of sending buffer: "
-                 << (m_config.iSndBufSize * m_iMaxSRTPayloadSize) << ". Use SRTO_SNDBUF if needed.");
+                 << (m_config.iSndBufSize * m_iMaxDataPayloadSize) << ". Use SRTO_SNDBUF if needed.");
         throw CUDTException(MJ_NOTSUP, MN_XSIZE, 0);
     }
 
@@ -7069,7 +7095,7 @@ int srt::CUDT::sendmsg2(const char *data, int len, SRT_MSGCTRL& w_mctrl)
         // Just return how many bytes were actually scheduled for writing.
         // XXX May be reasonable to add a flag that requires that the function
         // not return until the buffer is sent completely.
-        size = min(len, sndBuffersLeft() * m_iMaxSRTPayloadSize);
+        size = min(len, sndBuffersLeft() * m_iMaxDataPayloadSize);
     }
 
     {
@@ -7361,7 +7387,7 @@ int srt::CUDT::receiveMessage(char* data, int len, SRT_MSGCTRL& w_mctrl, int by_
 
             // After signaling the tsbpd for ready data, report the bandwidth.
 #if ENABLE_HEAVY_LOGGING
-            double bw = Bps2Mbps(int64_t(m_iBandwidth) * m_iMaxSRTPayloadSize );
+            double bw = Bps2Mbps(int64_t(m_iBandwidth) * m_iMaxDataPayloadSize );
             HLOGC(arlog.Debug, log << CONID() << "CURRENT BANDWIDTH: " << bw << "Mbps (" << m_iBandwidth << " buffers per second)");
 #endif
         }
@@ -7853,7 +7879,7 @@ void srt::CUDT::bstats(CBytePerfMon *perf, bool clear, bool instantaneous)
 
     const int64_t availbw = m_iBandwidth == 1 ? m_RcvTimeWindow.getBandwidth() : m_iBandwidth.load();
 
-    perf->mbpsBandwidth = Bps2Mbps(availbw * (m_iMaxSRTPayloadSize + pktHdrSize));
+    perf->mbpsBandwidth = Bps2Mbps(availbw * (m_iMaxDataPayloadSize + pktHdrSize));
 
     if (tryEnterCS(m_ConnectionLock))
     {
@@ -8193,22 +8219,18 @@ void srt::CUDT::sendCtrl(UDTMessageType pkttype, const int32_t* lparam, void* rp
             // this is periodically NAK report; make sure NAK cannot be sent back too often
 
             // read loss list from the local receiver loss list
-            int32_t *data = new int32_t[m_iMaxSRTPayloadSize / 4];
-            int      losslen;
-            m_pRcvLossList->getLossArray(data, losslen, m_iMaxSRTPayloadSize / 4);
-
-            if (0 < losslen)
+            FixedArray<int32_t> data (controlPayloadSize() / 4);
+            int losslen = m_pRcvLossList->getLossArray(data);
+            if (losslen > 0)
             {
-                ctrlpkt.pack(pkttype, NULL, data, losslen * 4);
+                ctrlpkt.pack(pkttype, /*lparam*/ NULL, data.data(), losslen * sizeof(int32_t));
                 ctrlpkt.set_id(m_PeerID);
-                nbsent        = m_pSndQueue->sendto(m_PeerAddr, ctrlpkt, m_SourceAddr);
+                nbsent = m_pSndQueue->sendto(m_PeerAddr, ctrlpkt, m_SourceAddr);
 
                 enterCS(m_StatsLock);
                 m_stats.rcvr.sentNak.count(1);
                 leaveCS(m_StatsLock);
             }
-
-            delete[] data;
         }
 
         // update next NAK time, which should wait enough time for the retansmission, but not too long
@@ -8555,11 +8577,12 @@ int srt::CUDT::sendCtrlAck(CPacket& ctrlpkt, int size)
             data[ACKD_RCVSPEED] = m_RcvTimeWindow.getPktRcvSpeed((rcvRate));
             data[ACKD_BANDWIDTH] = m_RcvTimeWindow.getBandwidth();
 
+            // XXX Likely this can be removed already.
             //>>Patch while incompatible (1.0.2) receiver floating around
             if (m_uPeerSrtVersion == SrtVersion(1, 0, 2))
             {
                 data[ACKD_RCVRATE] = rcvRate;                                     // bytes/sec
-                data[ACKD_XMRATE_VER102_ONLY] = data[ACKD_BANDWIDTH] * m_iMaxSRTPayloadSize; // bytes/sec
+                data[ACKD_XMRATE_VER102_ONLY] = data[ACKD_BANDWIDTH] * m_iMaxDataPayloadSize; // bytes/sec
                 ctrlsz = ACKD_FIELD_SIZE * ACKD_TOTAL_SIZE_VER102_ONLY;
             }
             else if (m_uPeerSrtVersion >= SrtVersion(1, 0, 3))
@@ -8926,10 +8949,11 @@ void srt::CUDT::processCtrlAck(const CPacket &ctrlpkt, const steady_clock::time_
         /* SRT v1.0.2 Bytes-based stats: bandwidth (pcData[ACKD_XMRATE_VER102_ONLY]) and delivery rate (pcData[ACKD_RCVRATE]) in
          * bytes/sec instead of pkts/sec */
         /* SRT v1.0.3 Bytes-based stats: only delivery rate (pcData[ACKD_RCVRATE]) in bytes/sec instead of pkts/sec */
+        // XXX v1.0.2 handling can be likely deleted.
         if (acksize > ACKD_TOTAL_SIZE_UDTBASE)
             bytesps = ackdata[ACKD_RCVRATE];
         else
-            bytesps = pktps * m_iMaxSRTPayloadSize;
+            bytesps = pktps * m_iMaxDataPayloadSize;
 
         m_iBandwidth        = avg_iir<8>(m_iBandwidth.load(), bandwidth);
         m_iDeliveryRate     = avg_iir<8>(m_iDeliveryRate.load(), pktps);
@@ -9305,7 +9329,7 @@ void srt::CUDT::processCtrlHS(const CPacket& ctrlpkt)
 
         CPacket rsppkt;
         rsppkt.setControl(UMSG_HANDSHAKE);
-        rsppkt.allocate(m_iMaxSRTPayloadSize);
+        rsppkt.allocate(controlPayloadSize());
 
         // If createSrtHandshake failed, don't send anything. Actually it can only fail on IPE.
         // There is also no possible IPE condition in case of HSv4 - for this version it will always return true.
@@ -11856,7 +11880,7 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
             if (conn != CONN_ACCEPT)
                 return conn;
 
-            packet.setLength(m_iMaxSRTPayloadSize);
+            packet.setLength(controlPayloadSize(addr.family()));
             if (!acpu->createSrtHandshake(SRT_CMD_HSRSP, SRT_CMD_KMRSP,
                         kmdata, kmdatasize,
                         (packet), (hs)))

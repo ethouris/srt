@@ -3437,7 +3437,11 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
         m.m_pSndQueue = new CSndQueue;
         m.m_pSndQueue->init(m.m_pChannel, m.m_pTimer);
         m.m_pRcvQueue = new CRcvQueue;
-        m.m_pRcvQueue->init(128, s->core().maxPayloadSize(), m.m_iIPversion, 1024, m.m_pChannel, m.m_pTimer);
+
+        // NOTE: Receiver Queue packet size must be of the maximum possible because you never
+        // know what kind of packet will come over the network, while this must accept any kind
+        // of packet.
+        m.m_pRcvQueue->init(128, s->core().controlPayloadSize(reqaddr.family()), m.m_iIPversion, 1024, m.m_pChannel, m.m_pTimer);
 
         // Rewrite the port here, as it might be only known upon return
         // from CChannel::open.
@@ -3558,10 +3562,27 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 
     UniqueLock gclock(self->m_GCStopLock);
 
-    while (!self->m_bClosing)
+    for (;;)
     {
         INCREMENT_THREAD_ITERATIONS();
         self->checkBrokenSockets();
+
+        if (self->m_bClosing)
+        {
+            // If GC is requested to close, it means the global cleanup
+            // was requested. But before exiting make sure all sockets
+            // and multiplexers are closed. 
+
+            SharedLock glock(self->m_GlobControlLock);
+            if (self->m_Sockets.empty() && self->m_ClosedSockets.empty())
+                break;
+
+            HLOGC(smlog.Debug, log << "GC: REQUESTED CLOSE, DELAYING EXIT - still "
+                    << self->m_Sockets.size() << " running and "
+                    << self->m_ClosedSockets.size() << " closed sockets");
+            self->m_GCStopCond.wait_for(gclock, milliseconds_from(200));
+            continue;
+        }
 
         HLOGC(inlog.Debug, log << "GC: sleep 1 s");
         self->m_GCStopCond.wait_for(gclock, seconds_from(1));
