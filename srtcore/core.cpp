@@ -2223,7 +2223,7 @@ bool srt::CUDT::processSrtMsg(const CPacket *ctrlpkt)
     case SRT_CMD_KMRSP:
     {
         // KMRSP doesn't expect any following action
-        m_pCryptoControl->processSrtMsg_KMRSP(srtdata, len, m_uPeerSrtVersion);
+        m_pCryptoControl->processSrtMsg_KMRSP(srtdata, len, m_uPeerSrtVersion, false);
         return true; // nothing to do
     }
 
@@ -2859,7 +2859,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             }
             else if (cmd == SRT_CMD_KMRSP)
             {
-                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion);
+                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion, true);
                 if (m_config.bEnforcedEnc && res == -1)
                 {
                     if (m_pCryptoControl->m_SndKmState == SRT_KM_S_BADSECRET)

@@ -3587,9 +3587,14 @@ RetryWaitBlocked:
                 CUDTSocket* s = m_Global.locateSocket(id, CUDTUnited::ERH_RETURN); // << LOCKS m_GlobControlLock!
                 if (s)
                 {
+                    // NOTE: SendBackupContext must be immediately updated with the deleted
+                    // socket because it contains the pointer to the member object, which will
+                    // be deleted when doing close().
+                    bool deleted SRT_ATR_UNUSED = w_sendBackupCtx.deleteById(id);
                     HLOGC(gslog.Debug,
                         log << "grp/sendBackup: swait/ex on @" << (id)
-                        << " while waiting for any writable socket - CLOSING");
+                        << " while waiting for any writable socket - CLOSING ("
+                        << (deleted ? "ALSO" : "NOT") << " from ctx)");
                     CUDT::uglobal().close(s); // << LOCKS m_GlobControlLock, then GroupLock!
                 }
                 else

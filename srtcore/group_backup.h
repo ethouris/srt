@@ -107,6 +107,8 @@ namespace groups
         /// Higher weight comes first, same weight: stable first, then fresh active.
         void sortByWeightAndState();
 
+        bool deleteById(SRTSOCKET id);
+
         BackupMemberState getMemberState(const SocketData* pSocketDataIt) const;
 
         unsigned countMembersByState(BackupMemberState st) const;

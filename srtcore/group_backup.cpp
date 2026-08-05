@@ -144,6 +144,21 @@ unsigned SendBackupCtx::countMembersByState(BackupMemberState st) const
     return m_stateCounter[st];
 }
 
+bool SendBackupCtx::deleteById(SRTSOCKET id)
+{
+    typedef vector<BackupMemberStateEntry>::const_iterator const_iter_t;
+    for (const_iter_t i = m_memberStates.begin(); i != m_memberStates.end(); ++i)
+    {
+        if (i->socketID == id)
+        {
+            m_memberStates.erase(i);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::string SendBackupCtx::printMembers() const
 {
     stringstream ss;
