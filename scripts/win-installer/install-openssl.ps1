@@ -1,4 +1,5 @@
-﻿#-----------------------------------------------------------------------------
+﻿#!/usr/bin/env PowerShell
+#-----------------------------------------------------------------------------
 #
 #  SRT - Secure, Reliable, Transport
 #  Copyright (c) 2021-2024, Thierry Lelegard
@@ -68,6 +69,7 @@ $ProgressPreference = 'SilentlyContinue'
 $status = 0
 $message = ""
 try {
+	Write-Output "Getting file index: $PackageList"
     $response = Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $PackageList
     $status = [int] [Math]::Floor($response.StatusCode / 100)
 }
@@ -84,17 +86,26 @@ if ($status -ne 1 -and $status -ne 2) {
 }
 $config = ConvertFrom-Json $Response.Content
 
+Write-Output "Getting installer file with .light and .installer =~ 'exe' and .arch =~ 'Universal'"
+
 # Find the URL of the latest "universal" installer in the JSON config file.
-$Url = $config.files | Get-Member | ForEach-Object {
+#$Url =
+$have = 0
+$config.files | Get-Member | ForEach-Object {
     $name = $_.name
     $info = $config.files.$($_.name)
     if (-not $info.light -and $info.installer -like "exe" -and $info.arch -like "universal") {
-        $info.url
+        $found_info = $info
+		$have = 1
     }
-} | Select-Object -Last 1
-if (-not $Url) {
+} # | Select-Object -Last 1
+#if (-not $Url) {
+if (-not $have) {
     Exit-Script "#### No universal installer found"
 }
+
+$Url = $found_info.url
+$xsum = $found_info.md5
 
 $ExeName = (Split-Path -Leaf $Url)
 $ExePath = "$TmpDir\$ExeName"
@@ -111,8 +122,16 @@ if (-not (Test-Path $ExePath)) {
     Exit-Script "$Url download failed"
 }
 
+Write-Output "Will check tmp\$ExeName for MD5: $xsum ..."
+
+$filehash = get-filehash $ExePath -algorithm md5
+
+if ($filehash.Hash -ne $xsum) {
+	Exit-Script "$ExePath MD5: $filehash - NOT MATCHING"
+}
+
 if (-not $NoInstall) {
-    Write-Output "Installing $ExeName"
+    Write-Output "CHECKSUM MATCHES. Installing $ExeName"
     Start-Process -FilePath $ExePath -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/ALLUSERS") -Wait
 }
 
