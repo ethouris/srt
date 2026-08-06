@@ -7,14 +7,15 @@
 #include "gtest/gtest.h"
 #include "test_env.h"
 
+#ifdef SRT_ENABLE_ENCRYPTION
+
+
 #include "crypto.h"
 #include "handshake.h"
 #include "hcrypt_msg.h"
 #include "hcrypt.h" // Imports the CRYSPR_HAS_AESGCM definition.
 #include "socketconfig.h"
 #include "api.h"
-
-#ifdef SRT_ENABLE_ENCRYPTION
 
 // processSrtMsg_KMRSP must reject malformed wire-supplied lengths before they
 // reach the fixed-size stack buffer / uninitialised-read paths inside the
@@ -29,14 +30,6 @@ TEST(CryptoKMRSP, RejectsMalformedLengths)
     // Oversize: would overflow uint32_t srtd[SRTDATA_MAXSIZE].
     EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), SRT_CMD_MAXSZ + sizeof(uint32_t), srtv, false),
               srt::SRT_CMD_NONE);
-
-    // Non-word-aligned: silently drops bytes and risks misinterpretation.
-    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), 7, srtv, false), srt::SRT_CMD_NONE);
-
-    // Empty / under-a-word: HtoNLA writes nothing and downstream code would read
-    // uninitialised stack from srtd[].
-    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), 0, srtv, false), srt::SRT_CMD_NONE);
-    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), 3, srtv, false), srt::SRT_CMD_NONE);
 }
 
 

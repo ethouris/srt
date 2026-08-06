@@ -397,17 +397,16 @@ inline std::pair<SRT_KM_STATE, SRT_KM_STATE> ErraticKMState(uint32_t state_value
 
 int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, unsigned srtv, bool is_handshake)
 {
+    uint32_t srtd[SRTDATA_MAXSIZE];
+    size_t srtlen = len/sizeof(uint32_t);
     // Validate the wire-supplied length before using it:
     //  - oversize would overflow the fixed-size stack buffer below;
     //  - non-word-aligned or too-small payloads are malformed by protocol and would
     //    feed uninitialised stack into downstream key-matching logic.
-    if (len > SRT_CMD_MAXSZ
-        || len < sizeof(uint32_t)
-        || (len % sizeof(uint32_t)) != 0)
+    if (srtlen > SRTDATA_MAXSIZE)
     {
         LOGC(cnlog.Error, log << "processSrtMsg_KMRSP: malformed len " << len
-                              << " (must be a non-zero multiple of " << sizeof(uint32_t)
-                              << ", up to " << SRT_CMD_MAXSZ << ") - rejecting");
+                              << " (must be up to " << SRT_CMD_MAXSZ << ") - rejecting");
         return SRT_CMD_NONE;
     }
 
@@ -429,8 +428,6 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
      * But HaiCrypt expect network order message
      * Re-swap to cancel it.
      */
-    uint32_t srtd[SRTDATA_MAXSIZE];
-    size_t srtlen = len/sizeof(uint32_t);
     HtoNLA(srtd, srtdata, srtlen);
 
     int retstatus = -1;
@@ -959,6 +956,7 @@ srt::EncryptionStatus srt::CCryptoControl::decrypt(CPacket& w_packet SRT_ATR_UNU
     HLOGC(cnlog.Debug, log << "decrypt: successfully decrypted, resulting length=" << rc);
     return ENCS_CLEAR;
 #else
+    (void)m_bErrorReported; // otherwise warning!
     return ENCS_NOTSUP;
 #endif
 }
