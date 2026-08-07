@@ -35,7 +35,8 @@
 param(
     [switch]$ForceDownload = $false,
     [switch]$NoInstall = $false,
-    [switch]$NoPause = $false
+    [switch]$NoPause = $false,
+	[switch]$Latest = $false
 )
 
 # A function to exit this script.
@@ -67,47 +68,58 @@ $ProjectUrl  = "https://sourceforge.net/projects/nsis/files/NSIS%203/"
 $UserAgent   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 $DownloadHead = "https://prdownloads.sourceforge.net/nsis/"
 
-# 2. Find the Latest Version Folder
-Write-Host "Checking for the latest NSIS version..."
-$ProjectPage = Invoke-WebRequest -Uri $ProjectUrl -UserAgent $UserAgent -UseBasicParsing
-# Matches version folders like "3.10", "3.12", etc.
-$Versions    = [regex]::matches($ProjectPage.Content, 'title="([\d\.]+)"') |
-	ForEach-Object { $_.Groups[1].Value } |
-	Sort-Object {[version]$_} -Descending
-$LatestVer   = $Versions[0]
-Write-Host "Latest version found: $LatestVer"
+# Latest download, on-demand only. Default is a hardcoded version.
+if ($Latest) {
+	# 2. Find the Latest Version Folder
+	Write-Host "Checking for the latest NSIS version..."
+	$ProjectPage = Invoke-WebRequest -Uri $ProjectUrl -UserAgent $UserAgent -UseBasicParsing
+	# Matches version folders like "3.10", "3.12", etc.
+	$Versions    = [regex]::matches($ProjectPage.Content, 'title="([\d\.]+)"') |
+		ForEach-Object { $_.Groups[1].Value } |
+		Sort-Object {[version]$_} -Descending
+	$LatestVer   = $Versions[0]
+	Write-Host "Latest version found: $LatestVer"
 
-# 3. Build Folder and File Target URLs
-$FolderUrl   = "${ProjectUrl}${LatestVer}/"
-$FolderPage  = Invoke-WebRequest -Uri $FolderUrl -UserAgent $UserAgent -UseBasicParsing
+	# 3. Build Folder and File Target URLs
+	$FolderUrl   = "${ProjectUrl}${LatestVer}/"
+	$FolderPage  = Invoke-WebRequest -Uri $FolderUrl -UserAgent $UserAgent -UseBasicParsing
 
-# Find the exact .exe installer filename (e.g., nsis-3.12-setup.exe)
-$FileMatch   = [regex]::match($FolderPage.Content, "nsis-${LatestVer}-setup\.exe")
-if (-not $FileMatch.Success) {
-    throw "Could not find the setup.exe file for version $LatestVer"
-}
-$FileName    = $FileMatch.Value
+	# Find the exact .exe installer filename (e.g., nsis-3.12-setup.exe)
+	$FileMatch   = [regex]::match($FolderPage.Content, "nsis-${LatestVer}-setup\.exe")
+	if (-not $FileMatch.Success) {
+		throw "Could not find the setup.exe file for version $LatestVer"
+	}
+	$FileName    = $FileMatch.Value
 
-# 4. Extract the Official MD5 Checksum
-Write-Host "Extracting official MD5 checksum..."
-# SourceForge stores file metadata in a JSON-like 'data-files' attribute or specific table rows
-# This regex extracts the MD5 hash associated directly with the target filename
-#$HashPattern = 'tr[^>]*?data-name="' + [regex]::Escape($FileName) + '"[^>]*?md5">([^<]+)'
-#$MD5Match    = [regex]::match($FolderPage.Content, $HashPattern)
+	# 4. Extract the Official MD5 Checksum
+	Write-Host "Extracting official MD5 checksum..."
+	# SourceForge stores file metadata in a JSON-like 'data-files' attribute or specific table rows
+	# This regex extracts the MD5 hash associated directly with the target filename
+	#$HashPattern = 'tr[^>]*?data-name="' + [regex]::Escape($FileName) + '"[^>]*?md5">([^<]+)'
+	#$MD5Match    = [regex]::match($FolderPage.Content, $HashPattern)
 
-$filedata_inpage = [regex]::match($FolderPage.Content, "net.sf.files = ([^;]+);")
-if (-not $filedata_inpage.Success) {
-	Exit-Script "net.sf.files not found"
-}
+	$filedata_inpage = [regex]::match($FolderPage.Content, "net.sf.files = ([^;]+);")
+	if (-not $filedata_inpage.Success) {
+		Exit-Script "net.sf.files not found"
+	}
 
-$filedata_json = $filedata_inpage.Groups[1].Value.Trim().ToLower()
+	$filedata_json = $filedata_inpage.Groups[1].Value.Trim().ToLower()
 
-$filedata = ConvertFrom-Json $filedata_json
+	$filedata = ConvertFrom-Json $filedata_json
 
-$ExpectedMD5 = $filedata.$FileName.md5
+	$ExpectedMD5 = $filedata.$FileName.md5
 
-if ($ExpectedMD5 -eq $null) {
-	Exit-Script "MD5 not found for $FileName"
+	if ($ExpectedMD5 -eq $null) {
+		Exit-Script "MD5 not found for $FileName"
+	}
+
+	Write-Host "MD5: $ExpectedMD5"
+} else {
+	Write-Host "USING PREDEFINED VERSION with hardcoded MD5: 3.12"
+	Write-Host "Use -Latest to force latest version; note that this can be prone to MITM attacks."
+
+	$ExpectedMD5 = "d5d54c2a96c1bcb25764adc9f9ff97f2"
+	$FileName = "nsis-3.12-setup.exe"
 }
 
 # 5. Download the File
