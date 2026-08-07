@@ -615,6 +615,23 @@ bool DoDownload(UriParser& us, string directory, string filename,
                         cerr << "Error: As the name is remote-provided, overwriting denied for security reasons." << endl;
                         goto exit;
                     }
+
+                    // Additionally check if the path is PWD-based;
+                    // reject any foreign-defined paths that are not
+                    // effectively local.
+                    char upathc[5] = "____";
+                    copy_n(directory.data(), min<size_t>(3, directory.size()), upathc);
+                    string upath = upathc;
+                    if (       upath[0] == '/'
+                            || upath[0] == '\\'
+                            || upath.substr(1, 2) == ":\\"  // Windows C:\ - like
+                            || directory.find("..") != std::string::npos) // Any parent-referring
+                    {
+                        cerr << "Error: the foreign-specified path reaches outside PWD - REJECTED\n";
+                        cerr << "Path: " << directory << endl;
+                        cerr << "NOTE: remote path is only allowed to point inside the current directory\n";
+                        goto exit;
+                    }
                 }
 
                 ofile.open(directory, flags);

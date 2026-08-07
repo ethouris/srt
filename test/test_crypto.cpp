@@ -30,6 +30,9 @@ TEST(CryptoKMRSP, RejectsMalformedLengths)
     // Oversize: would overflow uint32_t srtd[SRTDATA_MAXSIZE].
     EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), SRT_CMD_MAXSZ + sizeof(uint32_t), srtv, false),
               srt::SRT_CMD_NONE);
+    // Empty / under-a-word: HtoNLA writes nothing and downstream code would read
+    // uninitialised stack from srtd[].
+    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), 0, srtv, false), srt::SRT_CMD_NONE);
 }
 
 

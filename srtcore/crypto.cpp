@@ -430,7 +430,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
      */
     HtoNLA(srtd, srtdata, srtlen);
 
-    int retstatus = -1;
+    int retstatus = -1; // Error by default, unless all is confirmed
 
     // Since now, when CCryptoControl::decrypt() encounters an error, it will print it, ONCE,
     // until the next KMREQ is received as a key regeneration.
@@ -444,19 +444,24 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
             retstatus = 0;
 
         // If the erroneous KMRSP was received while the connection is established, we state
-        // the connection should be SECURED already, so no change if the state is done.
+        // the connection should be SECURED already, so no change of the state is done.
         if (!is_handshake)
         {
             LOGC(cnlog.Warn, log << "processSrtMsg_KMRSP: rogue KMRSP received as KMX update - ignoring");
-            return retstatus;
+            // Still proceed with the summary logging.
         }
-
-        m_SndKmMsg[0].iPeerRetry = 0;
-        m_SndKmMsg[1].iPeerRetry = 0;
-        m_SndKmState = peerstate;
-        m_RcvKmState = revstate;
-
-        LOGC(cnlog.Warn, log << "processSrtMsg_KMRSP: received failure report. STATE: " << KmStateStr(m_RcvKmState));
+        else
+        {
+            m_SndKmMsg[0].iPeerRetry = 0;
+            m_SndKmMsg[1].iPeerRetry = 0;
+            m_SndKmState = peerstate;
+            m_RcvKmState = revstate;
+            LOGC(cnlog.Warn, log << "processSrtMsg_KMRSP: received failure report. STATE: " << KmStateStr(m_RcvKmState));
+        }
+    }
+    else if (srtlen == 0) // 0-size is a special value for MsgLen, so avoid checks!
+    {
+        LOGC(cnlog.Warn, log << "processSrtMsg_KMRSP: IPE/EPE KM response key is empty - ignoring");
     }
     else
     {
@@ -476,7 +481,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         else
         {
             retstatus = -1;
-            LOGC(cnlog.Error, log << "processSrtMsg_KMRSP: IPE??? KM response key matches no key");
+            LOGC(cnlog.Error, log << "processSrtMsg_KMRSP: IPE/EPE KM response key matches no key");
             /* XXX INSECURE
             LOGC(cnlog.Error, log << "processSrtMsg_KMRSP: KM response: [" << FormatBinaryString((uint8_t*)srtd, len)
                 << "] matches no key 0=[" << FormatBinaryString((uint8_t*)m_SndKmMsg[0].Msg, m_SndKmMsg[0].MsgLen)

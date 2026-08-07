@@ -3573,13 +3573,15 @@ void* srt::CUDTUnited::garbageCollect(void* p)
             // was requested. But before exiting make sure all sockets
             // and multiplexers are closed. 
 
-            SharedLock glock(self->m_GlobControlLock);
-            if (self->m_Sockets.empty() && self->m_ClosedSockets.empty())
-                break;
+            {
+                SharedLock glock(self->m_GlobControlLock);
+                if (self->m_Sockets.empty() && self->m_ClosedSockets.empty())
+                    break;
 
-            HLOGC(smlog.Debug, log << "GC: REQUESTED CLOSE, DELAYING EXIT - still "
-                    << self->m_Sockets.size() << " running and "
-                    << self->m_ClosedSockets.size() << " closed sockets");
+                HLOGC(smlog.Debug, log << "GC: REQUESTED CLOSE, DELAYING EXIT - still "
+                        << self->m_Sockets.size() << " running and "
+                        << self->m_ClosedSockets.size() << " closed sockets");
+            }
             self->m_GCStopCond.wait_for(gclock, milliseconds_from(200));
             continue;
         }

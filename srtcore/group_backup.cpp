@@ -144,10 +144,19 @@ unsigned SendBackupCtx::countMembersByState(BackupMemberState st) const
     return m_stateCounter[st];
 }
 
-bool SendBackupCtx::deleteById(SRTSOCKET id)
+void SendBackupCtx::getSocketIds(std::set<SRTSOCKET>& ids) const
 {
     typedef vector<BackupMemberStateEntry>::const_iterator const_iter_t;
     for (const_iter_t i = m_memberStates.begin(); i != m_memberStates.end(); ++i)
+    {
+        ids.insert(i->socketID);
+    }
+}
+
+bool SendBackupCtx::deleteById(SRTSOCKET id)
+{
+    typedef vector<BackupMemberStateEntry>::iterator iter_t;
+    for (iter_t i = m_memberStates.begin(); i != m_memberStates.end(); ++i)
     {
         if (i->socketID == id)
         {

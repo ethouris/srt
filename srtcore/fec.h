@@ -34,6 +34,12 @@ class FECFilterBuiltin: public SrtPacketFilterBase
 
 public:
 
+    // rows/cols size can have this size at maximum, otherwise
+    // there's a risk to have an overflow memory size value on
+    // 32-bit systems, which may result in a false success followed
+    // by a crash.
+    static const int MAX_GROUP_SIZE = 0xFFFF;
+
     size_t numberCols() const { return m_number_cols; }
     size_t numberRows() const { return m_number_rows; }
 

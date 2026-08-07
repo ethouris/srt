@@ -3587,14 +3587,8 @@ RetryWaitBlocked:
                 CUDTSocket* s = m_Global.locateSocket(id, CUDTUnited::ERH_RETURN); // << LOCKS m_GlobControlLock!
                 if (s)
                 {
-                    // NOTE: SendBackupContext must be immediately updated with the deleted
-                    // socket because it contains the pointer to the member object, which will
-                    // be deleted when doing close().
-                    bool deleted SRT_ATR_UNUSED = w_sendBackupCtx.deleteById(id);
-                    HLOGC(gslog.Debug,
-                        log << "grp/sendBackup: swait/ex on @" << (id)
-                        << " while waiting for any writable socket - CLOSING ("
-                        << (deleted ? "ALSO" : "NOT") << " from ctx)");
+                    HLOGC(gslog.Debug, log << "grp/sendBackup: swait/ex on @" << id
+                            << " while waiting for any writable socket - CLOSING");
                     CUDT::uglobal().close(s); // << LOCKS m_GlobControlLock, then GroupLock!
                 }
                 else
@@ -3624,6 +3618,32 @@ RetryWaitBlocked:
         // You can safely throw here - nothing to fill in when all sockets down.
         // (timeout was reported by exception in the swait call).
         throw CUDTException(MJ_CONNECTION, MN_CONNLOST, 0);
+    }
+
+    // IMPORTANT!
+    // There was a socket deletion possibly done above, and as well there
+    // was the m_GroupLock lifted for that check activity, so potentially any socket
+    // from m_Group container could be deleted; review them and remove any dangling
+    // objects from w_sendBackupCtx.
+    //
+    // Due to the nature of the m_Group container, use mark-and-sweep method.
+
+    set<SRTSOCKET> remain;
+    w_sendBackupCtx.getSocketIds( (remain) );
+
+    // MARK
+    for (gli_t d = m_Group.begin(); d != m_Group.end(); ++d)
+    {
+        remain.erase(d->id);
+    }
+
+    HLOGC(gslog.Debug, log << "grp/sendBackup: RE-LOCK, checking members deleted in the meantime: "
+            << Printable(remain));
+
+    // SWEEP
+    for (set<SRTSOCKET>::iterator i = remain.begin(); i != remain.end(); ++i)
+    {
+        w_sendBackupCtx.deleteById(*i);
     }
 
     // Ok, now check if we have at least one write-ready.

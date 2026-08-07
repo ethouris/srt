@@ -259,7 +259,8 @@ TEST(TestFEC, ConfigExchangeFaux)
         "fec,cols:10,rows:-1", // E3: invalid value for rows
         "fec,cols:10,layout:stairwars", // E4: invalid value for layout
         "fec,cols:10,arq:sometimes", // E5: invalid value for arq
-        "fec,cols:10,weight:2" // F: invalid parameter name
+        "fec,cols:10,weight:2", // F: invalid parameter name
+        "fec,cols:80000,rows:70000" // oversized
     };
 
     for (auto badconfig: fec_config_wrong)

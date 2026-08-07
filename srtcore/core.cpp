@@ -2859,7 +2859,12 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             }
             else if (cmd == SRT_CMD_KMRSP)
             {
-                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion, true);
+                // Normally this is a handshake, but this one can be also called through
+                // the in-connected dispatcher and processCtrlHS(). The is_handshake can be
+                // still potentially set back to true inside when the KMX was detected as
+                // not done for the sake of HSv4.
+                bool is_handshake = m_parent->m_Status != SRTS_CONNECTED;
+                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion, is_handshake);
                 if (m_config.bEnforcedEnc && res == -1)
                 {
                     if (m_pCryptoControl->m_SndKmState == SRT_KM_S_BADSECRET)
@@ -8219,7 +8224,7 @@ void srt::CUDT::sendCtrl(UDTMessageType pkttype, const int32_t* lparam, void* rp
             // this is periodically NAK report; make sure NAK cannot be sent back too often
 
             // read loss list from the local receiver loss list
-            FixedArray<int32_t> data (controlPayloadSize() / 4);
+            FixedArray<int32_t> data (m_iMaxDataPayloadSize / sizeof(int32_t));
             int losslen = m_pRcvLossList->getLossArray(data);
             if (losslen > 0)
             {
