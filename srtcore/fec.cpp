@@ -59,13 +59,16 @@ bool FECFilterBuiltin::verifyConfig(const SrtFilterConfig& cfg, string& w_error)
 
     string colspec = map_get(cfg.parameters, "cols"), rowspec = map_get(cfg.parameters, "rows");
 
-    int out_rows = 1, out_cols /*mandatory*/;
+    int out_rows = 1, out_cols = 2;
 
-    out_cols = atoi(colspec.c_str());
-    if (out_cols < 2)
+    if (colspec != "")
     {
-        w_error = "at least 'cols' must be specified and > 1";
-        return false;
+        out_cols = atoi(colspec.c_str());
+        if (out_cols < 2)
+        {
+            w_error = "at least 'cols' must be specified and > 1";
+            return false;
+        }
     }
 
     if (rowspec != "")

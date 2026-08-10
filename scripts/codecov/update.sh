@@ -18,7 +18,7 @@ else
 fi
 
 echo "DOWNLOADING: $BASEURL"
-rm -f codecov || {echo "Can't delete 'codecov'; please delete manually" ; exit 1}
+rm -f codecov || { echo "Can't delete 'codecov'; please delete manually" ; exit 1; }
 
 curl -L -o codecov $BASEURL
 FILESHA=$(sha256sum codecov)
