@@ -417,7 +417,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         // So, as KMRSP handler, the agent should be expected to be a sender, hence m_hSndCrypto
         // should be created, but m_hRcvCrypto not. In case of HSv5, both should be simultaneously
         // either NULL or valid pointers.
-        if (!m_hRcvCrypto || m_SndKmState != SRT_KM_S_SECURED)
+        if (!m_hRcvCrypto && m_SndKmState != SRT_KM_S_SECURED)
             is_handshake = true;
 
         if (!m_hSndCrypto)
