@@ -61,14 +61,11 @@ bool FECFilterBuiltin::verifyConfig(const SrtFilterConfig& cfg, string& w_error)
 
     int out_rows = 1, out_cols /*mandatory*/;
 
-    if (colspec != "")
+    out_cols = atoi(colspec.c_str());
+    if (out_cols < 2)
     {
-        out_cols = atoi(colspec.c_str());
-        if (out_cols < 2)
-        {
-            w_error = "at least 'cols' must be specified and > 1";
-            return false;
-        }
+        w_error = "at least 'cols' must be specified and > 1";
+        return false;
     }
 
     if (rowspec != "")
@@ -81,7 +78,7 @@ bool FECFilterBuiltin::verifyConfig(const SrtFilterConfig& cfg, string& w_error)
         }
     }
 
-    if (out_cols > MAX_GROUP_SIZE || out_rows > MAX_GROUP_SIZE)
+    if (out_cols > MAX_GROUP_SIZE || out_rows > MAX_GROUP_SIZE || out_rows < -MAX_GROUP_SIZE)
     {
         w_error = "rows/cols size must not exceed 16-bit max value";
         return false;

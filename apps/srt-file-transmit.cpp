@@ -619,13 +619,16 @@ bool DoDownload(UriParser& us, string directory, string filename,
                     // Additionally check if the path is PWD-based;
                     // reject any foreign-defined paths that are not
                     // effectively local.
-                    char upathc[5] = "____";
-                    copy_n(directory.data(), min<size_t>(3, directory.size()), upathc);
-                    string upath = upathc;
-                    if (       upath[0] == '/'
-                            || upath[0] == '\\'
-                            || upath.substr(1, 2) == ":\\"  // Windows C:\ - like
-                            || directory.find("..") != std::string::npos) // Any parent-referring
+
+                    // NOTE: The file is always copied to the directory
+                    // specified locally, with the original filename. Therefore
+                    // it is not allowed that the file contain a path.
+
+                    static const size_t notfound = std::string::npos;
+                    if (       fn.find('/') != notfound
+                            || fn.find('\\') != notfound
+                            || fn.find(':') != notfound
+                            || fn.find("..") != notfound) // Any parent-referring
                     {
                         cerr << "Error: the foreign-specified path reaches outside PWD - REJECTED\n";
                         cerr << "Path: " << directory << endl;

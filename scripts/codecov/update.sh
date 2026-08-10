@@ -14,11 +14,11 @@ else
 	BASEURL=https://cli.codecov.io/v11.3.1/linux/codecov
 	SHA="ca1d64196d2d34771084afe76ea657d581bf628e31d993ff8e52ea09cc88a56d  codecov"
 	echo 'USING HARDCODED VERSION: 11.3.1. Use "update.sh latest" to get the latest version'
-	echo 'NOTE: Using the latest version is unsafe as MD5 is also downloaded over the network'
+	echo 'NOTE: Using the latest version is unsafe as SHA is also downloaded over the network'
 fi
 
 echo "DOWNLOADING: $BASEURL"
-rm -f codecov || (echo "Can't delete 'codecov'; please delete manually" ; exit 1)
+rm -f codecov || {echo "Can't delete 'codecov'; please delete manually" ; exit 1}
 
 curl -L -o codecov $BASEURL
 FILESHA=$(sha256sum codecov)
