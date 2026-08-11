@@ -341,9 +341,10 @@ TEST(TestFEC, Connection)
     EXPECT_TRUE(filterConfigSame(caller_config, fec_config_final));
     EXPECT_TRUE(filterConfigSame(accept_config, fec_config_final));
 
-    srt_close(a);
-    srt_close(s);
-    srt_close(l);
+    // Exceptionally blocked here to test "forgotten socket cleanup" additionally
+    //srt_close(a);
+    //srt_close(s);
+    //srt_close(l);
 }
 
 TEST(TestFEC, ConnectionReorder)
