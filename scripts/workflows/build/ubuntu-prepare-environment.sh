@@ -11,11 +11,14 @@ source $HERE/../options.sh.src
 OPTIONS_STR=$(check_options "$@") ||  exit 1
 eval "declare -A OPTIONS=( $OPTIONS_STR )"
 
-MAYBE_GDB=gdb
-[[ "$(cmake_OFF ${OPTIONS[-gdb]})" == "OFF"]] && MAYBE_GDB=""
+if [[ $(cmake_OFF ${OPTIONS[-gdb]}) != OFF ]]; then
+	MAYBE_GDB=gdb
+fi
+	
 
-MAYBE_SSL=libssl-dev
-[[ "$(cmake_OFF ${OPTIONS[-ssl]})" == "OFF"]] && MAYBE_SSL=""
+if [[ $(cmake_OFF ${OPTIONS[-ssl]}) != OFF ]]; then
+	MAYBE_SSL=libssl-dev
+fi
 
 apt update -y
 apt install -y tcl cmake $MAYBE_SSL $MAYBE_GDB
