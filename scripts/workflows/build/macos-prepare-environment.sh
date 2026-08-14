@@ -3,13 +3,11 @@
 HERE=`dirname $0`
 source $HERE/../options.sh.src
 
-OPTIONS_STR=$(check_options "$@") || exit 1
-eval "declare -A OPTIONS=( $OPTIONS_STR )"
 
 set -o xtrace
-if is_enable ${OPTIONS[-ut]}; then WITH_UT=1; fi
+if is-enable $(get-opt -ut $@); then WITH_UT=1; fi
 
-echo brew install make cmake llvm
+brew install make cmake llvm
 
 if (( $WITH_UT )); then
 	brew tap-new Haivision/gt-local

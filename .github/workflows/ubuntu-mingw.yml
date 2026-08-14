@@ -19,7 +19,7 @@ jobs:
       run: |
         export CC=x86_64-w64-mingw32-gcc-posix CXX=x86_64-w64-mingw32-g++-posix 
         # NOTE: -werror off because epoll warns about unimplemented system socket poll
-        ./scripts/workflows/build/configure.sh _build -werror off -enc off -ut off -bonding on -testing on -extra " -DUSE_OPENSSL_PC=OFF -DCMAKE_SYSTEM_NAME=Windows"
+        ./scripts/workflows/build/configure.sh _build -werror off -enc off -ut off -bonding on -testing on -- -DUSE_OPENSSL_PC=OFF -DCMAKE_SYSTEM_NAME=Windows
 
     - name: Build
       run:  ./scripts/workflows/build/build.sh _build

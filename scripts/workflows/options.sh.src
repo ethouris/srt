@@ -1,43 +1,38 @@
 #!/bin/echo This should be sourced, not executed.
 
-# This function only verifies if options are in key-value order.
-function check_options()
+function get-opt()
 {
-	local LAST
-	local OPTMATCH="-*"
-	LAST=
-	RET=0
-
-	for i in "$@"; do
-		if [[ "$i" == $OPTMATCH ]]; then
-			# Expect no stored option
-			if [[ -n $LAST ]]; then
-				RET=1
-				break
+	VAL=$1
+	shift
+	LAST=""
+	ISOPT=1
+	for opt in "$@"; do
+		if [[ -z $LAST ]]; then
+			LAST=$opt
+		elif [[ $LAST == $VAL ]]; then
+			if [[ "$VAL" == "--" ]]; then
+				ISOPT=0
+				echo -n " $opt"
+			else
+				echo $opt
+				return 0
 			fi
-			LAST=$i
 		else
-			if [[ -z $LAST ]]; then
-				RET=1
-				break
+			if (( $ISOPT )); then
+				LAST=""
 			fi
-			echo -n "[$LAST]='$i' "
-			LAST=
 		fi
 	done
-
-	echo ""
-	if [[ -n $LAST ]]; then
-		RET=1
+	if (( ! $ISOPT )); then
+		echo
+		return 0
 	fi
-	if (( $RET == 1 )); then
-		echo >&2 "Invalid option spec. Use -key value series."
-		exit 1
-	fi
-	return 0
+	return 1
 }
+#Usage:
+#get_opt $1 -opt1 val1 -opt2 val2 -opt3 val3
 
-function is_enable()
+function is-enable()
 {
 	for i in true on yes 1; do
 		if [[ "$1" == "$i" ]]; then

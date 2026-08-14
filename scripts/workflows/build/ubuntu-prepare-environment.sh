@@ -8,15 +8,12 @@ fi
 HERE=`dirname $0`
 source $HERE/../options.sh.src
 
-OPTIONS_STR=$(check_options "$@") ||  exit 1
-eval "declare -A OPTIONS=( $OPTIONS_STR )"
-
-if [[ $(cmake_OFF ${OPTIONS[-gdb]}) != OFF ]]; then
+if [[ $(cmake_OFF $(get-opt -gdb $@)) != OFF ]]; then
 	MAYBE_GDB=gdb
 fi
 	
 
-if [[ $(cmake_OFF ${OPTIONS[-ssl]}) != OFF ]]; then
+if [[ $(cmake_OFF $(get-opt -ssl $@)) != OFF ]]; then
 	MAYBE_SSL=libssl-dev
 fi
 
