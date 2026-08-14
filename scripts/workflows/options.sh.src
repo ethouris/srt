@@ -1,0 +1,112 @@
+#!/bin/echo This should be sourced, not executed.
+
+# This function only verifies if options are in key-value order.
+function check_options()
+{
+	local LAST
+	local OPTMATCH="-*"
+	LAST=
+	RET=0
+
+	for i in "$@"; do
+		if [[ "$i" == $OPTMATCH ]]; then
+			# Expect no stored option
+			if [[ -n $LAST ]]; then
+				RET=1
+				break
+			fi
+			LAST=$i
+		else
+			if [[ -z $LAST ]]; then
+				RET=1
+				break
+			fi
+			echo -n "[$LAST]='$i' "
+			LAST=
+		fi
+	done
+
+	echo ""
+	if [[ -n $LAST ]]; then
+		RET=1
+	fi
+	if (( $RET == 1 )); then
+		echo >&2 "Invalid option spec. Use -key value series."
+		exit 1
+	fi
+	return 0
+}
+
+function is_enable()
+{
+	for i in true on yes 1; do
+		if [[ "$1" == "$i" ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+function to_lower()
+{
+	echo $@ | tr '[:upper:]' '[:lower:]'
+}
+
+# Turn any boolean option to ON/OFF
+function cmake_ON()
+{
+	ARG=$(to_lower $1)
+	for i in true on yes 1; do
+		if [[ "$ARG" == "$i" ]]; then
+			echo "ON"
+			return 0
+		fi
+	done
+	if [[ "$ARG" == "2" ]]; then
+		# Special case for debug
+		echo 2
+	else
+		echo "OFF"
+	fi
+}
+
+function cmake_OFF()
+{
+	ARG=$(to_lower $1)
+	for i in false off no 0; do
+		if [[ "$ARG" == "$i" ]]; then
+			echo "OFF"
+			return 0
+		fi
+	done
+	echo "ON"
+}
+
+function cmake_ON_if()
+{
+	if [[ $1 == $2 ]]; then
+		echo ON
+	else
+		echo OFF
+	fi
+}
+
+function cmake_OFF_if()
+{
+	if [[ $1 == $2 ]]; then
+		echo OFF
+	else
+		echo ON
+	fi
+}
+
+function if_empty()
+{
+	if [[ -z $2 ]]; then
+		echo $1
+	else
+		echo $2
+	fi
+}
+
+# vim: ft=bash

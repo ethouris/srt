@@ -1,0 +1,41 @@
+#!/usr/bin/tclsh
+
+set HERE [file dirname $argv0]
+proc call {descr command args} {
+    global HERE
+
+    if { [catch {exec >@stdout 2>@stderr $HERE/$command {*}$args} out] } {
+        puts "*** ERROR: $descr:"
+        puts $out
+        puts "***"
+        exit 1
+    }
+}
+
+# Unknown handler to interpret bash variable assignment
+proc unknown args {
+    if {[string first = $args] != -1} {
+        lassign [split $args =] key val
+        if { [string first "\"" $val] } {
+            set val [lindex $val 0]
+        } else {
+            set val [string trim $val]
+        }
+        set key [string trim $key]
+        upvar $key kk
+        set kk $val
+        return
+    }
+
+    error "Unknown: $args"
+}
+
+call "prepare-environment"  prepare-environment.sh
+call "prepare-repository"   prepare-repository.sh
+call "step1"                step1-configure-pr.sh
+call "step2"                step2-build-pr__OUTPUT.sh    OUTPUT
+source OUTPUT ;# Expect SRT_TAG_VERSION and SRT_BASE
+call "step3"                step3-configure-base__SRT_TAG_VERSION__SRT_BASE.sh $SRT_TAG_VERSION $SRT_BASE
+call "step4"                step4-build-base__SRT_BASE.sh $SRT_BASE
+call "step5"                step5-run-abi-check.sh
+

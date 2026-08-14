@@ -18,7 +18,7 @@ build_script:
   - ps: if ($CNFG -eq "Debug") { if ($VSIMG -match '2015') { .\scripts\build-windows.ps1 -STATIC_LINK_SSL ON -BUILD_APPS OFF } else {.\scripts\build-windows.ps1 -STATIC_LINK_SSL ON -BUILD_APPS ON }}
 
 test_script:
-  - ps: if ( $Env:RUN_UNIT_TESTS ) { cd ./_build; ctest -E "TestIPv6.v6_calls_v4" --extra-verbose -C $Env:CONFIGURATION; cd ../ }
+  - ps: if ( $Env:RUN_UNIT_TESTS ) { cd _build; ctest -E "TestIPv6.v6_calls_v4" --extra-verbose -C $Env:CONFIGURATION; cd .. }
   
 after_build:
 - cmd: >-
