@@ -8,6 +8,8 @@ if [[ -z $OUTPUT ]]; then
 fi
 
 WD=$PWD
+HERE=`dirname $0`
+$HERE/prepare-environment.sh
 
 if [[ "$OUTPUT" == "-" ]]; then
 	exec 3>&1

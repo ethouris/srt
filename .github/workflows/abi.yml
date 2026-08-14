@@ -18,16 +18,18 @@ jobs:
        base_version: ${{ steps.build.outputs.SRT_BASE }}
        tag_version: ${{ steps.build.outputs.SRT_TAG_VERSION }}
     steps:
+
     - uses: actions/checkout@v3
       with:
         path: gitview_pr
+
     - id: settings
-      run: |
-         echo "SCRIPTS=$PWD/gitview_pr/scripts/workflows/abi" >> $GITHUB_ENV
+      run: echo "SCRIPTS=$PWD/gitview_pr/scripts/workflows/abi" >> $GITHUB_ENV
+
     - id: configure
       name: Configure (cmake)
-      run: |
-        $SCRIPTS/step1-configure-pr.sh
+      run: $SCRIPTS/step1-configure-pr.sh
+
     - id: build
       name: Build and dump
       run: |
@@ -35,6 +37,7 @@ jobs:
         echo "--- GITHUB_OUTPUT ---"
         cat $GITHUB_OUTPUT
         echo "---------------------"
+
     - id: upload_pr_dump
       uses: actions/upload-artifact@v4
       with:
@@ -55,14 +58,15 @@ jobs:
     - uses: actions/checkout@v3
       with:
         path: gitview_pr
+
     - id: settings
-      run: |
-         echo "SCRIPTS=$PWD/gitview_pr/scripts/workflows/abi" >> $GITHUB_ENV
+      run: echo "SCRIPTS=$PWD/gitview_pr/scripts/workflows/abi" >> $GITHUB_ENV
 
     - uses: actions/checkout@v3
       with:
         path: gitview_base
         ref: ${{ env.SRT_BASE }}
+
     - id: configure_tag
       name: Configure (cmake)
       run: |

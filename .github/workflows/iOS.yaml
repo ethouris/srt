@@ -25,6 +25,8 @@ jobs:
     - name: configure
       run: |
         export PATH="/opt/homebrew/opt/llvm/bin:$PATH" CC=clang CXX=clang++
+        echo "Compiler id:"
+        $CXX -v 
         ./scripts/workflows/build/configure.sh _build -sync ${{ matrix.sync }} -ut off -enc off -std 11 -bonding on -extra " -DCMAKE_MAKE_PROGRAM=gmake --toolchain scripts/iOS.cmake"
 
     - name: build

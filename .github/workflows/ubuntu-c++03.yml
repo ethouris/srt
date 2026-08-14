@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v3A
+    - uses: actions/checkout@v3
 
     - name: prepare
       run: ./scripts/workflows/build/ubuntu-prepare-environment.sh

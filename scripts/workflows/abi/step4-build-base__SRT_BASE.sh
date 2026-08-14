@@ -1,12 +1,14 @@
 #!/bin/bash
 
-WD=$PWD
-
 SRT_BASE=$1
 if [[ -z $SRT_BASE ]]; then
 	echo "Parameter required: SRT_BASE"
 	exit 1
 fi
+
+WD=$PWD
+HERE=`dirname $0`
+$HERE/prepare-environment.sh
 
 cd gitview_base      
 cd _build && cmake --build ./

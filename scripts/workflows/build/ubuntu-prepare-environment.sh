@@ -12,11 +12,11 @@ OPTIONS_STR=$(check_options "$@") ||  exit 1
 eval "declare -A OPTIONS=( $OPTIONS_STR )"
 
 MAYBE_GDB=gdb
-[[ "$(cmake_OFF ${OPTIONS[-gdb]})" == "OFF"]] && MAYBE_GDB=
+[[ "$(cmake_OFF ${OPTIONS[-gdb]})" == "OFF"]] && MAYBE_GDB=""
 
 MAYBE_SSL=libssl-dev
-[[ "$(cmake_OFF ${OPTIONS[-ssl]})" == "OFF"]] && MAYBE_SSL=
+[[ "$(cmake_OFF ${OPTIONS[-ssl]})" == "OFF"]] && MAYBE_SSL=""
 
-apt update
+apt update -y
 apt install -y tcl cmake $MAYBE_SSL $MAYBE_GDB
 
