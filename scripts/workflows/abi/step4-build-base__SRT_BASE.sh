@@ -10,6 +10,8 @@ WD=$PWD
 HERE=`dirname $0`
 $HERE/prepare-environment.sh
 
+set -o xtrace
+
 cd gitview_base      
 cd _build && cmake --build ./
 make install DESTDIR=./installdir
