@@ -2223,7 +2223,7 @@ bool srt::CUDT::processSrtMsg(const CPacket *ctrlpkt)
     case SRT_CMD_KMRSP:
     {
         // KMRSP doesn't expect any following action
-        m_pCryptoControl->processSrtMsg_KMRSP(srtdata, len, m_uPeerSrtVersion);
+        m_pCryptoControl->processSrtMsg_KMRSP(srtdata, len, m_uPeerSrtVersion, false);
         return true; // nothing to do
     }
 
@@ -2628,7 +2628,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             m_RejectReason = SRT_REJ_VERSION;
             // This means that a version with minimum 1.3.0 that features HSv5 is required,
             // hence all HSv4 clients should be rejected.
-            LOGP(cnlog.Error, "interpretSrtHandshake: minimum peer version 1.3.0 (HSv5 only), rejecting HSv4 client");
+            LOGP(cnlog.Error, string(FUNID()) + ": minimum peer version 1.3.0 (HSv5 only), rejecting HSv4 client");
             return false;
         }
         return true; // do nothing
@@ -2666,7 +2666,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
 
     if (IsSet(ext_flags, CHandShake::HS_EXT_HSREQ))
     {
-        HLOGC(cnlog.Debug, log << CONID() << "interpretSrtHandshake: extracting HSREQ/RSP type extension");
+        HLOGC(cnlog.Debug, log << CONID() << FUNID() << ": extracting HSREQ/RSP type extension");
         uint32_t *begin    = p;
         uint32_t *next     = 0;
         size_t    length   = size / sizeof(uint32_t);
@@ -2698,7 +2698,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                 {
                     // m_RejectReason already set
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: process HSREQ returned unexpected value " << rescmd);
+                         log << CONID() << FUNID() << ": process HSREQ returned unexpected value " << rescmd);
                     return false;
                 }
                 handshakeDone();
@@ -2729,7 +2729,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                     if (m_RejectReason == SRT_REJ_UNKNOWN)
                         m_RejectReason = SRT_REJ_ROGUE;
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: process HSRSP returned unexpected value " << rescmd);
+                         log << CONID() << FUNID() << ": process HSRSP returned unexpected value " << rescmd);
                     return false;
                 }
                 handshakeDone();
@@ -2739,7 +2739,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             {
                 m_RejectReason = SRT_REJ_ROGUE;
                 LOGC(cnlog.Warn,
-                     log << CONID() << "interpretSrtHandshake: no HSREQ/HSRSP block found in the handshake msg!");
+                     log << CONID() << FUNID() << ": no HSREQ/HSRSP block found in the handshake msg!");
                 // This means that there can be no more processing done by FindExtensionBlock().
                 // And we haven't found what we need - otherwise one of the above cases would pass
                 // and lead to exit this loop immediately.
@@ -2758,7 +2758,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
         }
     }
 
-    HLOGC(cnlog.Debug, log << CONID() << "interpretSrtHandshake: HSREQ done, checking KMREQ");
+    HLOGC(cnlog.Debug, log << CONID() << FUNID() << ": HSREQ done, checking KMREQ");
 
     // Now check the encrypted
 
@@ -2766,7 +2766,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
 
     if (IsSet(ext_flags, CHandShake::HS_EXT_KMREQ))
     {
-        HLOGC(cnlog.Debug, log << CONID() << "interpretSrtHandshake: extracting KMREQ/RSP type extension");
+        HLOGC(cnlog.Debug, log << CONID() << FUNID() << ": extracting KMREQ/RSP type extension");
 
 #ifdef SRT_ENABLE_ENCRYPTION
         if (!m_pCryptoControl->hasPassphrase())
@@ -2799,7 +2799,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             int cmd = FindExtensionBlock(begin, length, (blocklen), (next));
 
             HLOGC(cnlog.Debug,
-                  log << CONID() << "interpretSrtHandshake: found extension: (" << cmd << ") "
+                  log << CONID() << FUNID() << ": found extension: (" << cmd << ") "
                       << MessageTypeStr(UMSG_EXT, cmd));
 
             size_t bytelen = blocklen * sizeof(uint32_t);
@@ -2819,7 +2819,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                     m_RejectReason = SRT_REJ_IPE;
                     // Something went wrong.
                     HLOGC(cnlog.Debug,
-                          log << CONID() << "interpretSrtHandshake: IPE/EPE KMREQ processing failed - returned "
+                          log << CONID() << FUNID() << ": IPE/EPE KMREQ processing failed - returned "
                               << res);
                     return false;
                 }
@@ -2832,7 +2832,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                         m_RejectReason = SRT_REJ_CRYPTO;
                         LOGC(cnlog.Error,
                              log << CONID()
-                                 << "interpretSrtHandshake: KMREQ result: Bad crypto mode - rejecting");
+                                 << FUNID() << ": KMREQ result: Bad crypto mode - rejecting");
                         return false;
                     }
 #endif
@@ -2851,7 +2851,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                         }
                         LOGC(cnlog.Error,
                              log << CONID()
-                                 << "interpretSrtHandshake: KMREQ result abnornal - rejecting per enforced encryption");
+                                 << FUNID() << ": KMREQ result abnornal - rejecting per enforced encryption");
                         return false;
                     }
                 }
@@ -2859,7 +2859,12 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             }
             else if (cmd == SRT_CMD_KMRSP)
             {
-                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion);
+                // Normally this is a handshake, but this one can be also called through
+                // the in-connected dispatcher and processCtrlHS(). The is_handshake can be
+                // still potentially set back to true inside when the KMX was detected as
+                // not done for the sake of HSv4.
+                bool is_handshake = m_parent->m_Status != SRTS_CONNECTED;
+                int res = m_pCryptoControl->processSrtMsg_KMRSP(begin + 1, bytelen, m_uPeerSrtVersion, is_handshake);
                 if (m_config.bEnforcedEnc && res == -1)
                 {
                     if (m_pCryptoControl->m_SndKmState == SRT_KM_S_BADSECRET)
@@ -2884,7 +2889,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             }
             else
             {
-                HLOGC(cnlog.Debug, log << CONID() << "interpretSrtHandshake: ... skipping " << MessageTypeStr(UMSG_EXT, cmd));
+                HLOGC(cnlog.Debug, log << CONID() << FUNID() << ": ... skipping " << MessageTypeStr(UMSG_EXT, cmd));
                 if (NextExtensionBlock((begin), next, (length)))
                     continue;
             }
@@ -2926,7 +2931,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
 
     if (IsSet(ext_flags, CHandShake::HS_EXT_CONFIG))
     {
-        HLOGC(cnlog.Debug, log << CONID() << "interpretSrtHandshake: extracting various CONFIG extensions");
+        HLOGC(cnlog.Debug, log << CONID() << FUNID() << ": extracting various CONFIG extensions");
 
         uint32_t *begin    = p;
         uint32_t *next     = 0;
@@ -2938,7 +2943,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             int cmd = FindExtensionBlock(begin, length, (blocklen), (next));
 
             HLOGC(cnlog.Debug,
-                  log << CONID() << "interpretSrtHandshake: found extension: (" << cmd << ") "
+                  log << CONID() << FUNID() << ": found extension: (" << cmd << ") "
                       << MessageTypeStr(UMSG_EXT, cmd));
 
             const size_t bytelen = blocklen * sizeof(uint32_t);
@@ -2947,7 +2952,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                 if (!bytelen || bytelen > CSrtConfig::MAX_SID_LENGTH)
                 {
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: STREAMID length " << bytelen << " is 0 or > "
+                         log << CONID() << FUNID() << ": STREAMID length " << bytelen << " is 0 or > "
                              << +CSrtConfig::MAX_SID_LENGTH << " - PROTOCOL ERROR, REJECTING");
                     return false;
                 }
@@ -2997,7 +3002,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                 if (!bytelen || bytelen > CSrtConfig::MAX_CONG_LENGTH)
                 {
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: CONGESTION-control type length " << bytelen
+                         log << CONID() << FUNID() << ": CONGESTION-control type length " << bytelen
                              << " is 0 or > " << +CSrtConfig::MAX_CONG_LENGTH << " - PROTOCOL ERROR, REJECTING");
                     return false;
                 }
@@ -3040,7 +3045,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
                 if (!bytelen || bytelen > CSrtConfig::MAX_PFILTER_LENGTH)
                 {
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: packet-filter type length " << bytelen
+                         log << CONID() << FUNID() << ": packet-filter type length " << bytelen
                              << " is 0 or > " << +CSrtConfig::MAX_PFILTER_LENGTH << " - PROTOCOL ERROR, REJECTING");
                     return false;
                 }
@@ -3106,7 +3111,7 @@ bool srt::CUDT::interpretSrtHandshake(const CHandShake& hs,
             {
                 // Found some block that is not interesting here. Skip this and get the next one.
                 HLOGC(cnlog.Debug,
-                      log << CONID() << "interpretSrtHandshake: ... skipping " << MessageTypeStr(UMSG_EXT, cmd));
+                      log << CONID() << FUNID() << ": ... skipping " << MessageTypeStr(UMSG_EXT, cmd));
             }
 
             if (!NextExtensionBlock((begin), next, (length)))
@@ -8204,22 +8209,17 @@ void srt::CUDT::sendCtrl(UDTMessageType pkttype, const int32_t* lparam, void* rp
             // this is periodically NAK report; make sure NAK cannot be sent back too often
 
             // read loss list from the local receiver loss list
-            int32_t *data = new int32_t[m_iMaxSRTPayloadSize / 4];
-            int      losslen;
-            m_pRcvLossList->getLossArray(data, losslen, m_iMaxSRTPayloadSize / 4);
-
-            if (0 < losslen)
+            FixedArray<int32_t> data (m_iMaxSRTPayloadSize / sizeof(int32_t));
+            int losslen = m_pRcvLossList->getLossArray((data));
+            if (losslen > 0)
             {
-                ctrlpkt.pack(pkttype, NULL, data, losslen * 4);
+                ctrlpkt.pack(pkttype, /*lparam*/ NULL, /*rparam*/ data.data(), losslen * sizeof(int32_t));
                 ctrlpkt.set_id(m_PeerID);
-                nbsent        = m_pSndQueue->sendto(m_PeerAddr, ctrlpkt, m_SourceAddr);
+                nbsent = m_pSndQueue->sendto(m_PeerAddr, ctrlpkt, m_SourceAddr);
 
-                enterCS(m_StatsLock);
+                ScopedLock slg (m_StatsLock);
                 m_stats.rcvr.sentNak.count(1);
-                leaveCS(m_StatsLock);
             }
-
-            delete[] data;
         }
 
         // update next NAK time, which should wait enough time for the retansmission, but not too long
@@ -8566,6 +8566,7 @@ int srt::CUDT::sendCtrlAck(CPacket& ctrlpkt, int size)
             data[ACKD_RCVSPEED] = m_RcvTimeWindow.getPktRcvSpeed((rcvRate));
             data[ACKD_BANDWIDTH] = m_RcvTimeWindow.getBandwidth();
 
+            // XXX Likely this can be removed already.
             //>>Patch while incompatible (1.0.2) receiver floating around
             if (m_uPeerSrtVersion == SrtVersion(1, 0, 2))
             {
@@ -8948,6 +8949,7 @@ bool srt::CUDT::processCtrlAck(const CPacket &ctrlpkt, const steady_clock::time_
         /* SRT v1.0.2 Bytes-based stats: bandwidth (pcData[ACKD_XMRATE_VER102_ONLY]) and delivery rate (pcData[ACKD_RCVRATE]) in
          * bytes/sec instead of pkts/sec */
         /* SRT v1.0.3 Bytes-based stats: only delivery rate (pcData[ACKD_RCVRATE]) in bytes/sec instead of pkts/sec */
+        // XXX v1.0.2 handling can be likely deleted.
         if (acksize > ACKD_TOTAL_SIZE_UDTBASE)
             bytesps = ackdata[ACKD_RCVRATE];
         else
@@ -9352,6 +9354,12 @@ bool srt::CUDT::processCtrlHS(const CPacket& ctrlpkt)
             {
                 m_tsLastSndTime.store(steady_clock::now());
             }
+        }
+
+        // If a REJECTION HS has been sent, break also the connection locally.
+        if (initdata.m_iReqType >= URQ_FAILURE_TYPES)
+        {
+            processCtrlShutdown(); // always returns true
         }
     }
     else
@@ -12555,7 +12563,7 @@ bool srt::CUDT::runAcceptHook(CUDT *acore, const sockaddr* peer, const CHandShak
                 if (!bytelen || bytelen > CSrtConfig::MAX_SID_LENGTH)
                 {
                     LOGC(cnlog.Error,
-                         log << CONID() << "interpretSrtHandshake: STREAMID length " << bytelen << " is 0 or > "
+                         log << CONID() << FUNID() << ": STREAMID length " << bytelen << " is 0 or > "
                              << +CSrtConfig::MAX_SID_LENGTH << " - PROTOCOL ERROR, REJECTING");
                     return false;
                 }

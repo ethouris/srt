@@ -95,6 +95,14 @@ modified by
 #define SRT_STATIC_ASSERT(cond, msg)
 #endif
 
+#if HAVE_FULL_CXX11
+#define FUNID() __func__
+#elif defined(__GNUC__) || defined(__clang__) || defined(_MSC_VER) || defined(__INTEL_COMPILER) || defined(__BORLANDC__) || defined(__SUNPRO_CC)
+#define FUNID() __FUNCTION__
+#else
+#define FUNID() ""
+#endif
+
 #include <exception>
 
 namespace srt_logging

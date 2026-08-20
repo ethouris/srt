@@ -542,6 +542,15 @@ public: // internal API
         return m_config.bMessageAPI ? (len+ps-1)/ps : 1;
     }
 
+    // This returns the biggest possible size for an SRT payload with
+    // the default 1500 MTU size. When in doubt, use AF_INET, which returns
+    // bigger size, if needed for a safe allocation.
+    static int controlPayloadSize(int family = AF_INET)
+    {
+        int header = family == AF_INET6 ? CPacket::UDP_HDR_SIZE_IPv6 : CPacket::UDP_HDR_SIZE;
+        return CPacket::ETH_MAX_MTU_SIZE - header;
+    }
+
     static int32_t makeTS(const time_point& from_time, const time_point& tsStartTime)
     {
         // NOTE:

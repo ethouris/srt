@@ -791,27 +791,26 @@ int32_t srt::CRcvLossList::getFirstLostSeq() const
     return m_caSeq[m_iHead].seqstart;
 }
 
-void srt::CRcvLossList::getLossArray(int32_t* array, int& len, int limit)
+int srt::CRcvLossList::getLossArray(FixedArray<int32_t>& w_array)
 {
-    len = 0;
-
-    int i = m_iHead;
-
-    while ((len < limit - 1) && (-1 != i))
+    int len = 0, maxlen = int(w_array.size());
+    for (int i = m_iHead; i != LOC_NONE; i = m_caSeq[i].inext)
     {
-        array[len] = m_caSeq[i].seqstart;
-        if (SRT_SEQNO_NONE != m_caSeq[i].seqend)
+        if (len >= maxlen - 1) // allowed excessive check for 2 next cells
+            break;
+
+        Seq& r = m_caSeq[i];
+        const int32_t firstmark = (r.seqend == SRT_SEQNO_NONE)
+            ? LOSSDATA_SEQNO_SOLO // == 0 -> bool(firstmark) == false
+            : LOSSDATA_SEQNO_RANGE_FIRST;
+
+        w_array[len++] = r.seqstart | firstmark;
+        if (firstmark)
         {
-            // there are more than 1 loss in the sequence
-            array[len] |= LOSSDATA_SEQNO_RANGE_FIRST;
-            ++len;
-            array[len] = m_caSeq[i].seqend;
+            w_array[len++] = r.seqend;
         }
-
-        ++len;
-
-        i = m_caSeq[i].inext;
     }
+    return len;
 }
 
 srt::CRcvFreshLoss::CRcvFreshLoss(int32_t seqlo, int32_t seqhi, int initial_age)
