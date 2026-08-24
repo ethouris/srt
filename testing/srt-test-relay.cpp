@@ -87,6 +87,7 @@ static void OnINT_SetInterrupted(int)
 }
 
 using namespace std;
+using namespace hvu;
 
 size_t g_chunksize = 0;
 size_t g_default_live_chunksize = 1316;

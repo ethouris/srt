@@ -43,7 +43,7 @@ hvu::logging::Logger applog("app", srt::logging::logger_config(), true, "srt-mpb
 
 using namespace srt;
 using namespace std;
-
+using namespace hvu;
 
 volatile bool mpbond_int_state = false;
 void OnINT_SetIntState(int)

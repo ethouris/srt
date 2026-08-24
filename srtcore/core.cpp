@@ -2320,8 +2320,8 @@ int CUDT::processSrtMsg_HSREQ(const uint32_t *srtdata, size_t bytelen, uint32_t 
     }
 
     LOGC(cnlog.Debug, log << "HSREQ/rcv: cmd=" << SRT_CMD_HSREQ << "(HSREQ) len=" << bytelen
-                          << " vers=0x" << fmt(srtdata[SRT_HS_VERSION], hex)
-                          << " opts=0x" << fmt(srtdata[SRT_HS_FLAGS], hex)
+                          << " vers=0x" << fmtm(srtdata[SRT_HS_VERSION], hex)
+                          << " opts=0x" << fmtm(srtdata[SRT_HS_FLAGS], hex)
                           << " delay=" << SRT_HS_LATENCY_RCV::unwrap(srtdata[SRT_HS_LATENCY]));
 
     m_uPeerSrtVersion = srtdata[SRT_HS_VERSION];
@@ -3395,7 +3395,7 @@ bool CUDT::interpretGroup(CUDTSocket* lsn, const int32_t groupdata[], size_t dat
           log << CONID() << "interpretGroup: STATE: HsSide=" << s_hs_side[m_SrtHsSide]
               << " HS MSG: " << MessageTypeStr(UMSG_EXT, hsreq_type_cmd) << " $" << grpid << " type=" << gtp
               << " weight=" << link_weight
-              << " flags=0x" << fmt(link_flags, hex));
+              << " flags=0x" << fmtm(link_flags, hex));
 #endif
 
     // XXX Here are two separate possibilities:
@@ -4873,7 +4873,7 @@ EConnectStatus CUDT::processConnectResponse(const CPacket& response, CUDTExcepti
         {
             HLOGC(cnlog.Debug,
                   log << CONID() << "processConnectResponse: REQ-TIME LOW; got INDUCTION HS response (cookie:"
-                      << fmt(m_ConnRes.m_iCookie, hex)
+                      << fmtm(m_ConnRes.m_iCookie, hex)
                       << " version:" << m_ConnRes.m_iVersion
                       << "), sending CONCLUSION HS with this cookie");
 
@@ -6239,12 +6239,12 @@ bool CUDT::frequentLogAllowed(size_t logid, const time_point& tnow, std::string&
         const int supr = m_aSuppressedMsg[logid];
 
         if (supr > 0)
-            w_why = fmtcat("++SUPPRESSED: ", supr);
+            w_why = ofcat("++SUPPRESSED: ", supr);
         m_aSuppressedMsg[logid] = 0;
     }
     else
     {
-        w_why = fmtcat("Too early - last one was ", FormatDuration<DUNIT_MS>(tnow - m_tsLogSlowDown[logid].load()));
+        w_why = ofcat("Too early - last one was ", FormatDuration<DUNIT_MS>(tnow - m_tsLogSlowDown[logid].load()));
         // Set YOUR OWN bit, atomically.
         m_LogSlowDownExpired |= uint8_t(BIT(logid));
         ++m_aSuppressedMsg[logid];
@@ -6301,7 +6301,7 @@ SRT_REJECT_REASON CUDT::setupCC()
     // SrtCongestion will retrieve whatever parameters it needs
     // from *this.
 
-    bool res = m_CongCtl.select(m_config.sCongestion.str());
+    bool res = m_CongCtl.select(m_config.sCongestion.str(), m_config.uSenderMode);
     if (!res || !m_CongCtl.configure(this))
     {
         return SRT_REJ_CONGESTION;
@@ -7083,20 +7083,36 @@ int CUDT::sendmsg2(const char *data, int len, SRT_MSGCTRL& w_mctrl)
                 << " !" << BufferStamp(data, size));
 
         time_point start_time = m_stats.tsStartTime;
-        if (w_mctrl.srctime && w_mctrl.srctime < count_microseconds(start_time.time_since_epoch()))
+        if (w_mctrl.srctime)
         {
-            LOGC(aslog.Error,
-                log << CONID() << "Wrong source time was provided. Sending is rejected.");
-            throw CUDTException(MJ_NOTSUP, MN_INVALMSGAPI);
-        }
+            // Start time can't be earlier than connection time; this kind of time
+            // wouldn't be able to be handled and it's likely a bug.
+            if (w_mctrl.srctime < count_microseconds(start_time.time_since_epoch()))
+            {
+                LOGC(aslog.Error,
+                        log << CONID() << "Wrong source time was provided. Sending is rejected.");
+                throw CUDTException(MJ_NOTSUP, MN_INVALMSGAPI);
+            }
 
-        if (w_mctrl.srctime && (!m_config.bMessageAPI || !m_bTsbPd))
+            /* XXX Check again. When using file mode at the reception side, the
+               timestamp is ignored anyway, so this is likely not necessary.
+            if ((!m_config.bMessageAPI || !m_bTsbPd))
+            {
+                HLOGC(aslog.Warn, log << CONID()
+                        << "Source time can only be used with TSBPD and Message API enabled. Using default time instead.");
+                w_mctrl.srctime = 0;
+            }
+            */
+        }
+        else
         {
-            HLOGC(
-                aslog.Warn,
-                log << CONID()
-                    << "Source time can only be used with TSBPD and Message API enabled. Using default time instead.");
-            w_mctrl.srctime = 0;
+            // SRCTIME is undefined - this is not acceptable in STOW sender modes
+            if (m_config.uSenderMode != 0)
+            {
+                LOGC(aslog.Error, log << CONID() << "sendmsg2: with sender mode=" << m_config.uSenderMode
+                        << " declaring packet send time is obligatory");
+                throw CUDTException(MJ_NOTSUP, MN_INVALMSGAPI);
+            }
         }
 
         // w_mctrl.seqno is INPUT-OUTPUT value:
@@ -7138,10 +7154,8 @@ int CUDT::sendmsg2(const char *data, int len, SRT_MSGCTRL& w_mctrl)
     }
     else
     {
-        if (m_LastSched.kickSchedule(seqno, steady_clock::now(), m_tdSendInterval))
-        {
-            m_pMuxer->scheduleSend(m_parent, seqno, sched::TP_REGULAR, m_LastSched.lastTime());
-        }
+        time_point dst_time = time_point() + microseconds_from(w_mctrl.srctime);
+        scheduleRegular(seqno, steady_clock::now(), dst_time);
     }
 
 #ifdef SRT_ENABLE_ECN
@@ -7155,6 +7169,145 @@ int CUDT::sendmsg2(const char *data, int len, SRT_MSGCTRL& w_mctrl)
 
     HLOGC(aslog.Debug, log << CONID() << "sock:SENDING (END): success, size=" << size);
     return size;
+}
+
+// [[affinity(main)]]
+void CUDT::scheduleRegular(int32_t seqno, const time_point& currtime, const time_point& exp_sendtime)
+{
+    m_LastSched.lazyStart(seqno, currtime);
+    time_point delivery = exp_sendtime + milliseconds_from(m_iPeerTsbPdDelay_ms) + slippedRTT(2);
+    m_pMuxer->scheduleSend(m_parent, seqno, sched::TP_REGULAR, exp_sendtime, delivery);
+}
+
+void CUDT::scheduleRexmit(int32_t seqno, const time_point& exp_sendtime)
+{
+    time_point delivery = exp_sendtime + milliseconds_from(m_iPeerTsbPdDelay_ms) + slippedRTT(2);
+    m_pMuxer->scheduleSend(m_parent, seqno, sched::TP_REXMIT, exp_sendtime, delivery);
+}
+
+
+steady_clock::time_point CSendPipeManager::updateNext(const steady_clock::time_point& currtime,
+            const steady_clock::duration& send_interval)
+{
+    duration passed_time = currtime - m_tsTime.load();
+
+    int deviation = count_microseconds(send_interval - passed_time);
+    m_tdAverageDeviation_us = avg_iir_lazy<16>(m_tdAverageDeviation_us, deviation);
+
+    time_point nextperiod_time = m_tsTime.load() + send_interval;
+    time_point forfeit_time = currtime - send_interval * 2;
+
+    HLOGC(qslog.Debug, log << "PLAN: now=" << FormatTime(currtime)
+            << " LAST:" << FormatDurationAuto(m_tsTime.load() - currtime, true)
+            << " NEXT:" << FormatDurationAuto(nextperiod_time - currtime, true)
+            << " PAST-LAST: " << FormatDurationAuto(forfeit_time - nextperiod_time, true));
+
+    if (nextperiod_time + seconds_from(1) < currtime)
+        nextperiod_time = forfeit_time;
+
+    if (nextperiod_time < currtime)
+    {
+        nextperiod_time = currtime;
+    }
+    // Remember this as the last sending time
+    // NOTE: We remember this as the last sending time,
+    // regardless if we have used the time override or not.
+    // Time override is used when a regular packet's expected sending
+    // time is earlier than nextperiod_time. In this case we send it
+    // faster than according to the current speed, but we still remember
+    // this time as the last sent in order to keep up with the speed.
+    m_tsTime = nextperiod_time;
+
+    return m_tsTime;
+}
+
+// [[affinity(CSndQueue::m_WorkerThread)]]
+bool CUDT::planSendingTime(sched::Type type, const CUDT::time_point& /* UNUSED latest_delivery*/, CUDT::time_point& w_sendtime)
+{
+    // type: check if TP_REXMIT, otherwise it's regular
+    // latest_delivery: the latest possible time when it should be delivered
+    // w_sendtime:
+    //  [IN] The PLANNED time for the packet (in eager mode, the latest time to send the regular packet)
+    // [ONT] The resulting time when the packet should be sent
+    //
+    // Return:
+    // * true: this scheduled packet shall be sent
+    // * false: please drop this send request
+
+    // Ok, the state update rules:
+    //
+    // m_tsTime is the time when the packet was sent last time.
+    // This should be set to the time written into w_sendtime.
+    // All calculations start from this time. It should not be zero any time.
+
+    time_point currtime = steady_clock::now();
+
+    // Could assert, but let's just do a quick check
+    if (m_LastSched.updateFirst(currtime))
+    {
+        HLOGC(qslog.Debug, log << "PLAN: First time, set as NOW: " << FormatTime(m_LastSched.lastTime()));
+
+        // Yes, will be in the past during pickup; doesn't matter.
+        w_sendtime = m_LastSched.lastTime();
+        return true;
+    }
+
+    time_point nextperiod_time = m_LastSched.updateNext(currtime, m_tdSendInterval);
+
+    // Ok, so nextperiod_time is now the time that should be set
+    // as w_sendtime; we need to check it if it's in forward.
+    // If so, take it as a good deal.
+    if (nextperiod_time <= w_sendtime)
+    {
+        HLOGC(qslog.Debug, log << "PLAN: ... PLANTIME=" << FormatTime(w_sendtime) << " - speedup by "
+                << FormatDurationAuto(w_sendtime - nextperiod_time));
+
+        w_sendtime = nextperiod_time;
+        return true;
+    }
+
+    // Ok, now we are past the intended sending time.
+    // Additional rules:
+
+    // For regular (first-time, unique) packets, we allow
+    // for overdrive, no matter how fast it would get.
+
+    if (type != sched::TP_REXMIT)
+    {
+        HLOGC(qslog.Debug, log << "PLAN: ... PLANTIME=" << FormatTime(w_sendtime) << " KEPT - override NEXTSEND by "
+                << FormatDurationAuto(nextperiod_time - w_sendtime));
+        // REGULAR
+        // Leave the send time as is, while keeping the last
+        // sending time as the alleged next sending time.
+        return true;
+    }
+
+    /* XXX Block this for now.
+       This also means that planning the packet can't be rejected.
+       This is still only a plan - actual sending will happen only
+       when the packet is about to be sent and it's requested from
+       the Socket to provide it.
+
+    // For retransmitted packets, qualify them to send at
+    // this predicted time. Except they are already past the
+    // latest possible delivery time, in which case deny them.
+
+    if (nextperiod_time > latest_delivery)
+    {
+        HLOGC(qslog.Debug, log << "PLAN:... REXMIT nextsend=" << FormatTime(nextperiod_time)
+                << " exceeds latest delivery by " << FormatDurationAuto(nextperiod_time - latest_delivery)
+                << " - NOT PLANNING");
+        return false;
+    }
+    // */
+
+    // Condition: next delivery time is past w_sendtime, but still before latest_delivery
+    // Plan regularly, without override.
+
+    HLOGC(qslog.Debug, log << "PLAN:... REXMIT nextsend=" << FormatTime(nextperiod_time)
+            << " - PLANNING at this time; " << FormatDurationAuto(currtime - nextperiod_time) << " towards NOW");
+    w_sendtime = nextperiod_time;
+    return true;
 }
 
 void CUDT::updateCryptoOnSending()
@@ -7178,21 +7331,6 @@ void CUDT::updateCryptoOnSending()
                 reinterpret_cast<const uint32_t*>(km->bytedata()),
                 km->bytesize() / sizeof(uint32_t));
     }
-}
-
-sync::steady_clock::time_point CUDT::calculateRegularSchedTime()
-{
-    time_point last = m_LastSched.lastTime();
-
-    time_point now = steady_clock::now();
-    if (now - last > seconds_from(1))
-    {
-        // If the sending event is 1 second old, return current time.
-        // XXX Notify in the log that there was 1 second of time forgotten.
-        return now;
-    }
-
-    return last + m_tdSendInterval.load();
 }
 
 int CUDT::recv(char* data, int len)
@@ -8770,7 +8908,7 @@ void CUDT::processCtrlAck(const CPacket &ctrlpkt, const steady_clock::time_point
         // included, but it also triggers for any other kind of invalid value.
         // This check MUST BE DONE before making any operation on this number.
         LOGC(inlog.Error, log << CONID() << "ACK: IPE/EPE: received invalid ACK value: " << ackdata_seqno
-                << " " << fmt(ackdata_seqno, hex) << " (IGNORED)");
+                << " " << fmtm(ackdata_seqno, hex) << " (IGNORED)");
         return;
     }
 
@@ -9135,6 +9273,8 @@ void CUDT::processCtrlLossReport(const CPacket& ctrlpkt)
     // If remain with this value, there's nothing to schedule.
     int32_t sched_lo = SRT_SEQNO_NONE, sched_hi = SRT_SEQNO_NONE;
 
+    time_point first_send_time;
+
     {
 #if SRT_ENABLE_BONDING
         // Keep the group from disappearing in the meantime
@@ -9194,11 +9334,11 @@ void CUDT::processCtrlLossReport(const CPacket& ctrlpkt)
                 {
                     HLOGC(inlog.Debug, log << CONID() << "LOSSREPORT: adding "
                         << losslist_lo << " - " << losslist_hi << " to loss list");
-                    num = m_pSndBuffer->insertLoss(losslist_lo, losslist_hi, steady_clock::now());
+                    num = m_pSndBuffer->insertLoss(losslist_lo, losslist_hi, steady_clock::now(), (first_send_time));
                     sched_lo = losslist_lo;
                     sched_hi = losslist_hi;
                 }
-                // ELSE losslist_lo %< m_iSndLastAck
+                // ELSE losslist_lo <% m_iSndLastAck
                 else
                 {
                     // This should be theoretically impossible because this would mean that
@@ -9220,7 +9360,7 @@ void CUDT::processCtrlLossReport(const CPacket& ctrlpkt)
                     {
                         HLOGC(inlog.Debug, log << CONID() << "LOSSREPORT: adding "
                                 << m_iSndLastAck << "[ACK] - " << losslist_hi << " to loss list");
-                        num = m_pSndBuffer->insertLoss(m_iSndLastAck, losslist_hi, steady_clock::now());
+                        num = m_pSndBuffer->insertLoss(m_iSndLastAck, losslist_hi, steady_clock::now(), (first_send_time));
                         dropreq_hi = CSeqNo::decseq(m_iSndLastAck);
                         IF_HEAVY_LOGGING(drop_type = "partially");
 
@@ -9265,7 +9405,8 @@ void CUDT::processCtrlLossReport(const CPacket& ctrlpkt)
 
                     HLOGC(inlog.Debug,
                             log << CONID() << "LOSSREPORT: adding %" << losslist[i] << " (1 packet) to loss list");
-                    num = m_pSndBuffer->insertLoss(losslist[i], losslist[i], steady_clock::now());
+                    num = m_pSndBuffer->insertLoss(losslist[i], losslist[i], steady_clock::now(), (first_send_time));
+                    sched_lo = sched_hi = losslist[i];
 
                     m_StatsLock.lock();
                     m_stats.sndr.lost.count(num);
@@ -9287,34 +9428,15 @@ void CUDT::processCtrlLossReport(const CPacket& ctrlpkt)
         }
     }
 
-    if (m_config.uSenderMode == 1)
+    if (m_config.uSenderMode != 0 && sched_lo != SRT_SEQNO_NONE)
     {
-        int npackets = 0, nbytes = 0;
-        if (!m_pSndBuffer->getPacketRangeSize(sched_lo, sched_hi, (npackets), (nbytes)))
+        if (sched_lo != SRT_SEQNO_NONE && !is_zero(first_send_time)) // theoretically can happen in buffer empty - paranoid check
         {
-            // XXX LOGC
+            scheduleRexmit(sched_lo, first_send_time);
         }
-
-        time_point start;
-        duration step;
-        if (npackets && defineSchedTimes(sched_lo, sched_hi, (start), (step)))
+        else
         {
-            int32_t seqno = sched_lo, endseq = CSeqNo::incseq(sched_hi);
-
-            time_point when = start;
-            for (;;)
-            {
-                m_pMuxer->scheduleSend(m_parent, seqno, sched::TP_REXMIT, when);
-                seqno = CSeqNo::incseq(seqno);
-                if (seqno == endseq)
-                {
-                    break;
-                }
-                when += step;
-            }
-
-            // After scheduling update the send time stats.
-            m_LastSend.update(when, nbytes, npackets);
+            LOGC(qslog.Error, log << "LOSSREPORT: IPE: loss scheduled, but % and time empty!");
         }
     }
 
@@ -9651,7 +9773,7 @@ void CUDT::processCtrl(const CPacket &ctrlpkt)
           log << CONID() << "incoming UMSG:" << ctrlpkt.getType() << " ("
               << MessageTypeStr(ctrlpkt.getType(), ctrlpkt.getExtendedType())
               << ") socket=@" << ctrlpkt.id()
-              << " arg=" << ctrlpkt.getAckSeqNo() << "/0x" << fmt(ctrlpkt.getAckSeqNo(), hex));
+              << " arg=" << ctrlpkt.getAckSeqNo() << "/0x" << fmtm(ctrlpkt.getAckSeqNo(), hex));
 
     // XXX [TSA] This function may need to lock m_ConnectionLock
     switch (ctrlpkt.getType())
@@ -9801,7 +9923,7 @@ void CUDT::updateAfterSrtHandshake(int hsv)
     {
         SharedLock glock (uglobal().m_GlobControlLock);
         grpspec = m_parent->m_GroupOf
-            ? fmtcat(" group=$", m_parent->m_GroupOf->id())
+            ? ofcat(" group=$", m_parent->m_GroupOf->id())
             : string();
     }
 #else
@@ -9886,6 +10008,44 @@ void CUDT::retransmissionConsumeLength(size_t payload_size)
 #else
     (void) payload_size; // fake use
 #endif
+}
+
+int CUDT::extractPlannedLoss(SendTaskProto& proto)
+{
+    // Ok, first extract the first and next loss. NOTE:
+    // 1. It doesn't mean that any loss is eligible for sending.
+    // 2. Having both seqno set only means that there's more than one.
+
+    // All we can do here is to plan sending for the losses that are reported.
+
+    duration delivery_slip = milliseconds_from(m_iPeerTsbPdDelay_ms) + slippedRTT(2);
+
+    time_point sendtime;
+    pair<int32_t, int32_t> nextloss = m_pSndBuffer->peekRexmit(minRexmitInterval(), (sendtime));
+
+    // RETURN:
+    // 0 - There are no lost packets scheduled, including the current one.
+    // 1 - The current packet was filled, but there are no more losses.
+    // 2 - The current was filled, and next, too. 
+    if (nextloss.first == SRT_SEQNO_NONE)
+    {
+        // LOG: no loss available
+        return 0;
+    }
+
+    // Fill the first one
+    proto.m_Packet.set_socket(m_parent);
+    proto.m_Packet.m_iSeqNo = nextloss.first;
+    proto.m_Packet.m_Type = sched::TP_REXMIT;
+    proto.m_tsSendTime = sendtime;
+    proto.m_tsLatestDeliveryTime = sendtime + delivery_slip;
+
+    planSendingTime(sched::TP_REXMIT, proto.m_tsLatestDeliveryTime, (proto.m_tsSendTime));
+
+    if (nextloss.second == SRT_SEQNO_NONE)
+        return 1;
+
+    return 2;
 }
 
 int CUDT::packLostData(CSndPacket& w_sndpkt)
@@ -10776,7 +10936,7 @@ int CUDT::checkLazySpawnTsbPdThread()
 
         HLOGP(qrlog.Debug, "Spawning Socket TSBPD thread");
 #if HVU_ENABLE_HEAVY_LOGGING
-        ofmtbufstream buf;
+        ofmt_bufs buf;
         // Take the last 2 ciphers from the socket ID.
         string s = fmts(m_SocketID, fmtc().fillzero().width(2));
         buf << "SRT:TsbPd:@" << s.substr(s.size()-2, 2);
@@ -11065,7 +11225,7 @@ bool CUDT::handlePacketDecryption(CPacket& packet)
         if (rc == ENCS_CLEAR && packet.getMsgCryptoFlags() == EK_NOENC)
             return true;
 
-        IF_LOGGING(failure = fmtcat("Decryption ", rc == ENCS_FAILED ? "failed" : "unsupported"));
+        IF_LOGGING(failure = ofcat("Decryption ", rc == ENCS_FAILED ? "failed" : "unsupported"));
     }
 
     // DECRYPTION FAILED: Just display the error in the logs and update stats.
@@ -11192,7 +11352,7 @@ bool CUDT::handleGroupPacketReception(CUDTGroup* grp, vector<CRcvBuffer::UnitHan
         }
 
 #if HVU_ENABLE_HEAVY_LOGGING
-        hvu::ofmtbufstream expectspec;
+        hvu::ofmt_bufs expectspec;
         if (excessive)
             expectspec << "EXCESSIVE(" << exc_type << ")";
         else
@@ -12156,7 +12316,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
 
     int32_t cookie_val = bake(addr);
 
-    HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: new cookie: " << fmt(cookie_val, hex));
+    HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: new cookie: " << fmtm(cookie_val, hex));
 
     // Remember the incoming destination address here and use it as a source
     // address when responding. It's not possible to record this address yet
@@ -12236,7 +12396,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
         if (hs.m_iCookie != cookie_val)
         {
             m_RejectReason = SRT_REJ_RDVCOOKIE;
-            HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ...wrong cookie " << fmt(cookie_val, hex) << ". Ignoring.");
+            HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ...wrong cookie " << fmtm(cookie_val, hex) << ". Ignoring.");
             return m_RejectReason;
         }
 
@@ -12599,7 +12759,8 @@ void CUDT::checkBlindRexmitTimer(const steady_clock::time_point& currtime)
         if (getFlightSpan() > 0)
         {
             const int32_t csn = m_iSndCurrSeqNo;
-            const int     num = m_pSndBuffer->insertLoss(m_iSndLastAck, csn, steady_clock::now());
+            time_point first_send_time;
+            const int     num = m_pSndBuffer->insertLoss(m_iSndLastAck, csn, steady_clock::now(), (first_send_time));
             if (num > 0)
             {
                 m_StatsLock.lock();
@@ -12613,7 +12774,7 @@ void CUDT::checkBlindRexmitTimer(const steady_clock::time_point& currtime)
 
                 if (m_config.uSenderMode != 0)
                 {
-                    scheduleRexmitRange(m_iSndLastAck, csn);
+                    scheduleRexmit(m_iSndLastAck, first_send_time);
                 }
             }
         }
@@ -12631,94 +12792,6 @@ void CUDT::checkBlindRexmitTimer(const steady_clock::time_point& currtime)
     {
         m_pMuxer->updateSendNormal(m_parent);
     }
-}
-
-void CUDT::scheduleRexmitRange(int32_t lo, int32_t hi)
-{
-    // First, measure the distance and see if you can gracefully
-    // schedule these packets without breaking the current bandwidth limit.
-
-    time_point start;
-    duration step;
-    if (defineSchedTimes(lo, hi, (start), (step)))
-    {
-        int32_t seqno = lo, endseq = CSeqNo::incseq(hi);
-
-        int npackets = 0, nbytes = 0;
-        if (!m_pSndBuffer->getPacketRangeSize(lo, hi, (npackets), (nbytes)))
-        {
-            // XXX LOGC
-        }
-        time_point when = start;
-        for (;;)
-        {
-            m_pMuxer->scheduleSend(m_parent, seqno, sched::TP_REXMIT, when);
-            seqno = CSeqNo::incseq(seqno);
-            if (seqno == endseq)
-            {
-                break;
-            }
-            when += step;
-        }
-
-        // After scheduling update the send time stats.
-        m_LastSend.update(when, nbytes, npackets);
-    }
-}
-
-// This function should check if all packets in the range can be retransmitted
-// and whether they can be scheduled for that easily. Remarks:
-// - This function is used only for FASTREXMIT or LATEREXMIT; so we can be certain
-//   that have NAKREPORT off, might be that TLPKTDROP is on, if so, TSBPDMODE is also on.
-// - if TLPKTDROP is off, then all packets must be retransmitted, so this procedure must
-//   define scheduling time for all packets in the range no matter what.
-// - if TLPKTDROP is on, DO NOT schedule these packets at all, if the next regular
-//   packet to send has a critically small expected arrival time (less than avg RTT)
-bool CUDT::defineSchedTimes(int32_t lo, int32_t hi, time_point& w_start, duration& w_step)
-{
-    // XXX THIS IS NOT READY YET. KINDA STUB.
-
-    int distance SRT_ATR_UNUSED = CSeqNo::seqlen(lo, hi);
-
-    time_point start = m_LastSend.time();
-
-    // XXX HERE do some estimation on how much time you have to send packes
-    // depending on the expected arrival time and whether there's measurement
-    // time or flush time.
-
-    // The application shall send packets in groups, while within a group all packets
-    // should be declared the same delivery time (as expected for the last packet)
-    // and all should be sent one after another without waiting in between.
-
-    // This procedure should now define sending time for all packets in the range
-    // depending on the current mode:
-    // - In measurement mode, all packets should be scheduled as fast as possible.
-    //   The scheduler should be configured here to send packets with maximum
-    //   currently allowed speed, which is defined in m_tdSendInterval. That
-    //   value should be shaped according to the MAXBW settings, also "infinite",
-    //   as well as the currently measured "bandwidth" speed on the link (that is
-    //   for measurement the speed may also increase in time). Note that the LAST
-    //   packet in the group must be sent at time not earlier than RTT + LATENCY + EAT.
-    // - In flush time, usually set when difference frames are to be scheduled,
-    //   the step time should be defined as:
-    //   - for regular packets, the measured "reasonable" speed, which is the
-    //     speed that should ensure no packet loss, at minimum the speed required
-    //     to send all packets from the group up to the declared time (the
-    //     whole timeslice split into the number of packets in the group).
-    //   - for lost packets, keep the "bandwidh overhead" rule, that is, use the
-    //     "maximum reasonable" speed (or MAXBW if lower) + overhead percentage.
-
-    // Summary of the data required for calculations:
-    //
-    // - BANDWIDTH: the currently measured maximum speed. May exceed the MAXBW.
-    // - MAXBW, INPUTBW: declared or measured maximum bandwidth
-    // - OHEADBW: the overhead percentage, allowed for retransmissions
-    // - TOPBW: the maximum speed measured during measurement time
-    // 
-
-    w_start = start;
-    w_step = m_tdSendInterval;
-    return true;
 }
 
 void CUDT::checkTimers()

@@ -61,7 +61,7 @@ set1_if(DARWIN	   (${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR APPLE)
 set1_if(GNU_OS      ${CMAKE_SYSTEM_NAME} MATCHES "GNU") # Use GNU_OS to not confuse with gcc
 set1_if(OHOS        ${CMAKE_SYSTEM_NAME} MATCHES "OHOS")
 set1_if(SUNOS       ${SYSNAME_LC} MATCHES "sunos")
-set1_if(POSIX       LINUX OR DARWIN OR BSD OR SUNOS OR ANDROID OR OHOS OR (CYGWIN AND CYGWIN_USE_POSIX) OR GNU_OS)
+set1_if(POSIX       LINUX OR DARWIN OR BSD OR SUNOS OR ANDROID OR OHOS OR (CYGWIN AND ENABLE_CYGWIN_POSIX) OR GNU_OS)
 set1_if(SYMLINKABLE LINUX OR DARWIN OR BSD OR SUNOS OR CYGWIN OR GNU_OS)
 
 # "MICROSOFT" means "compiling on Microsoft Windows using Visual Studio compiler"
@@ -1616,6 +1616,9 @@ if (ENABLE_APPS)
 
 		srt_add_testprogram(srt-test-multiplex)
 		srt_make_application(srt-test-multiplex)
+
+		srt_add_testprogram(srt-test-stow)
+		srt_make_application(srt-test-stow)
 
 		if (ENABLE_BONDING)
 			srt_add_testprogram(srt-test-mpbond)

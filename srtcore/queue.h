@@ -1097,7 +1097,9 @@ public:
     void removeSender(CUDT* u);
     // SCHEDULER API
 
-    SendTask::taskiter_t scheduleSend(CUDTSocket* src, int32_t seqno, sched::Type type, const sync::steady_clock::time_point& when);
+    void scheduleSend(CUDTSocket* src, int32_t seqno, sched::Type type,
+            const sync::steady_clock::time_point& when,
+            const sync::steady_clock::time_point& delivery);
 
 };
 

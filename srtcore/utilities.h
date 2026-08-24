@@ -55,6 +55,7 @@ written by
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
+#include <cmath>
 #include <stdexcept>
 
 #include "ofmt.h"
@@ -270,7 +271,7 @@ private:
 
     void throw_invalid_index(int i) const
     {
-        throw std::runtime_error(hvu::fmtcat(OFMT_RAWSTR("Index "), i, OFMT_RAWSTR(" out of range")));
+        throw std::runtime_error(hvu::ofcat(OFMT_SV("Index "), i, OFMT_SV(" out of range")));
     }
 
 private:
@@ -957,6 +958,16 @@ inline std::pair<typename Map::mapped_type&, bool> map_tryinsert(Map& mp, const 
     return std::pair<Value&, bool>(ref, mp.size() > sizeb4);
 }
 
+template<typename Map, typename Key>
+inline std::pair<typename Map::mapped_type*, bool> map_tryinsertp(Map& mp, const Key& k)
+{
+    typedef typename Map::mapped_type Value;
+    size_t sizeb4 = mp.size();
+    Value& ref = mp[k];
+
+    return std::pair<Value*, bool>(&ref, mp.size() > sizeb4);
+}
+
 template<typename InputIterator, typename OutputIterator, typename TransFunction>
 inline void FilterIf(InputIterator bg, InputIterator nd,
         OutputIterator out, TransFunction fn)
@@ -1272,17 +1283,19 @@ struct MapProxy
 
 inline std::string FormatBinaryString(const uint8_t* bytes, size_t size)
 {
-    using namespace hvu;
-
     if ( size == 0 )
         return "";
 
-    ofmtbufstream os;
-    os.setup(fmtc().fillzero().uhex());
+    using namespace std;
+
+    // Not using ofmt because we are better off here
+    // with stateous format settings.
+    ostringstream os;
+    os << internal << hex << uppercase << setfill('0');
 
     for (size_t i = 0; i < size; ++i)
     {
-        os << fmtx<int>(bytes[i], fmtc().width(2));
+        os << setw(2) << int(bytes[i]);
     }
     return os.str();
 }
@@ -1350,6 +1363,14 @@ inline ValueType avg_iir(ValueType old_value, ValueType new_value)
 }
 
 template <size_t DEPRLEN, typename ValueType>
+inline ValueType avg_iir_lazy(ValueType old_value, ValueType new_value, ValueType trap_initial = ValueType())
+{
+    if (old_value == trap_initial)
+        return new_value;
+    return (old_value * (DEPRLEN - 1) + new_value) / DEPRLEN;
+}
+
+template <size_t DEPRLEN, typename ValueType>
 inline ValueType avg_iir_w(ValueType old_value, ValueType new_value, size_t new_val_weight)
 {
     return (old_value * (DEPRLEN - new_val_weight) + new_value * new_val_weight) / DEPRLEN;
@@ -1371,6 +1392,20 @@ inline Integer number_slices(Integer total_size, Integer slice_size)
     return (total_size + slice_size - 1) / slice_size;
 }
 
+template<class Integer, class Divstruct>
+inline std::pair<Integer, Integer> divmod_makepair(const Divstruct& dv)
+{
+    return std::make_pair(dv.quot, dv.rem);
+}
+
+// This exposes std::div using std::pair as result so that you can use Tie
+// In C++17 it would be unnecessary - you do simply:
+// - auto [q, r] = std::div(num, den);
+template<class Integer>
+inline std::pair<Integer, Integer> divmod(Integer num, Integer den)
+{
+    return divmod_makepair<Integer>(std::div(num, den));
+}
 
 // Property accessor definitions
 //

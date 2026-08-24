@@ -759,8 +759,8 @@ struct CSrtConfigSetter<SRTO_KMREFRESHRATE>
         {
             co.uKmPreAnnouncePkt = (km_refresh - 1) / 2;
             LOGC(aclog.Warn,
-                 log << "SRTO_KMREFRESHRATE=0x" << fmt(km_refresh, std::hex) << ": setting SRTO_KMPREANNOUNCE=0x"
-                     << fmt(co.uKmPreAnnouncePkt, std::hex));
+                 log << "SRTO_KMREFRESHRATE=0x" << fmtm(km_refresh, std::hex) << ": setting SRTO_KMPREANNOUNCE=0x"
+                     << fmtm(co.uKmPreAnnouncePkt, std::hex));
         }
     }
 };
@@ -783,8 +783,8 @@ struct CSrtConfigSetter<SRTO_KMPREANNOUNCE>
         if (km_preanno > (kmref - 1) / 2)
         {
             LOGC(aclog.Error,
-                 log << "SRTO_KMPREANNOUNCE=0x" << fmt(km_preanno, std::hex)
-                     << " exceeds KmRefresh/2, 0x" << fmt((kmref - 1) / 2, std::hex)
+                 log << "SRTO_KMPREANNOUNCE=0x" << fmtm(km_preanno, std::hex)
+                     << " exceeds KmRefresh/2, 0x" << fmtm((kmref - 1) / 2, std::hex)
                      << " - OPTION REJECTED.");
             throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
         }
@@ -959,9 +959,9 @@ struct CSrtConfigSetter<SRTO_SENDMODE>
     {
         const int val = cast_optval<int>(optval, optlen);
 
-        if (val < 0 || val > 1)
+        if (val < 0 || val > 2)
         {
-            LOGC(aclog.Error, log << "OPTION: sendmode: only 0 and 1 allowed");
+            LOGC(aclog.Error, log << "OPTION: sendmode: allowed 0=live 1=stow 2=planned");
             throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
         }
 

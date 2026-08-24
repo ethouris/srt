@@ -658,7 +658,7 @@ void CSndQueue::init(CChannel* c)
 
 #if HVU_ENABLE_LOGGING
     ++m_counter;
-    const string thrname = fmtcat("SRT:SndQ:w", m_counter.load());
+    const string thrname = ofcat("SRT:SndQ:w", m_counter.load());
     const char*       thname  = thrname.c_str();
 #else
     const char* thname = "SRT:SndQ";
@@ -818,7 +818,7 @@ void CSndQueue::workerSendOrder()
                 m_SendOrderList.requeue(runner, next_send_time); // [TSA] IDEM
                 IF_HEAVY_LOGGING(sync::steady_clock::time_point now = sync::steady_clock::now());
                 HLOGC(qslog.Debug, log << "SND updated to " << FormatTime(next_send_time)
-                        << " (now" << fmt(count_microseconds(next_send_time - now), showpos) << "us)");
+                        << " (now" << fmtm(count_microseconds(next_send_time - now), showpos) << "us)");
             }
             else
             {
@@ -841,10 +841,14 @@ void CSndQueue::workerSendOrder()
 // to be returned from none(). Here it's returned as empty_list.end().
 SocketHolder::socklist_t SocketHolder::empty_list;
 
-SendTask::taskiter_t CMultiplexer::scheduleSend(CUDTSocket* src, int32_t seqno, sched::Type type, const sync::steady_clock::time_point& when)
+void CMultiplexer::scheduleSend(CUDTSocket* src, int32_t seqno, sched::Type type,
+        const sync::steady_clock::time_point& latest_send,
+        const sync::steady_clock::time_point& latest_delivery)
 {
-    SendTask task (SchedPacket(src, seqno, type), when);
-    return m_SndQueue.m_Scheduler.enqueue_task(src->id(), task);
+    if (type == sched::TP_REXMIT)
+        m_SndQueue.m_Scheduler.prescheduleLoss(src, seqno);
+    else
+        m_SndQueue.m_Scheduler.prescheduleRegular(SendTaskProto(SchedPacket(src, seqno, type), latest_send, latest_delivery));
 }
 
 void CSndQueue::workerPacketScheduler()
@@ -854,7 +858,6 @@ void CSndQueue::workerPacketScheduler()
     THREAD_STATE_INIT(thname.c_str());
 
     int interrupt_credit = 5;
-
     for (;;)
     {
         if (m_bClosing)
@@ -865,16 +868,28 @@ void CSndQueue::workerPacketScheduler()
 
         HLOGC(qslog.Debug, log << "SndQ: waiting to get next send candidate...");
         THREAD_PAUSED();
-        SchedPacket p = m_Scheduler.wait_pop();
+        //
+        // API Scheduling adds directly to the queue only if it is free.
+        // Otherwise it's added to the "forequeue", with latest sending time.
+        // If the m_Scheduler contains no packets in the past, instead of
+        // waiting YET, you pick the earliest (sorted by expected send time)
+        // packet and enqueue it in the m_Scheduler. At this moment you select
+        // the sending time basing on the currently shaped sending interval.
+
+        // SENDMODE: PLAIN (0): use default order scheduler.
+        // SENDMODE: EAGER (1): schedule packets ASAP, just preserve the timestamp
+        // SENDMODE: PLANNED (2): schedule packets at their declared send time
+        SchedPacket pspec = m_Scheduler.wait_pop();
         THREAD_RESUMED();
         INCREMENT_THREAD_ITERATIONS();
 
-        if (p.empty())
+        if (pspec.empty())
         {
             --interrupt_credit;
             if (!m_bClosing)
             {
-                LOGC(qslog.Error, log << "SndQ: IPE: scheduler interrupted while queue is running!");
+                LOGC(qslog.Error, log << "SndQ: IPE: scheduler interrupted while queue is running (tolerate next "
+                        << interrupt_credit << ")!");
                 if (!interrupt_credit)
                 {
                     m_bClosing = true;
@@ -887,8 +902,8 @@ void CSndQueue::workerPacketScheduler()
 
         CSndPacket sndpkt;
         CNetworkInterface source_addr;
-        CUDTSocket* s = p.m_Socket.socket;
-        const bool res = s->core().packData(p, (sndpkt), (source_addr));
+        CUDTSocket* s = pspec.m_Socket.socket;
+        const bool res = s->core().packData(pspec, (sndpkt), (source_addr));
         if (!res)
         {
             LOGC(qslog.Error, log << "SndQ: IPE: @" << s->id()
@@ -904,8 +919,14 @@ void CSndQueue::workerPacketScheduler()
         const sockaddr_any target_addr = s->core().m_PeerAddr;
         m_pChannel->sendto(target_addr, sndpkt.pkt, source_addr);
 
+        steady_clock::time_point last_send_time = steady_clock::now();
+        s->core().m_LastSend.update(last_send_time, sndpkt.pkt.getLength());
+
         // Restore to maximum after a successful extraction.
         interrupt_credit = 5;
+
+        /* XXX There's no chained scheduling anymore
+           Any next sending will be based on the direct submission.
 
         steady_clock::time_point when = s->core().calculateRegularSchedTime();
 
@@ -918,6 +939,7 @@ void CSndQueue::workerPacketScheduler()
             SendTask task (SchedPacket(s, sc.lastSchedSeq() , sched::TP_REGULAR), when);
             m_Scheduler.enqueue_task(s->id(), task);
         }
+        */
     }
     THREAD_EXIT();
 }
@@ -1238,7 +1260,7 @@ bool CMultiplexer::qualifyToHandleRID(EReadStatus    rst,
         {
             HLOGC(cnlog.Debug,
                   log << "RID: socket @" << i->m_iID << " still active (remaining "
-                      << fmt(count_microseconds(i->m_tsTTL - tsNow) / 1000000.0, fixed) << "s of TTL)...");
+                      << fmtm(count_microseconds(i->m_tsTTL - tsNow) / 1000000.0, fixed) << "s of TTL)...");
         }
 
         const steady_clock::time_point tsLastReq = i->m_pUDT->m_tsLastReqTime;
@@ -1472,7 +1494,7 @@ void CRcvQueue::init(int series_size, size_t payload, CChannel* cc)
 
 #if HVU_ENABLE_LOGGING
     const int cnt = ++m_counter;
-    const string thrname = fmtcat("SRT:RcvQ:w", cnt);
+    const string thrname = ofcat("SRT:RcvQ:w", cnt);
 #else
     const string thrname = "SRT:RcvQ:w";
 #endif

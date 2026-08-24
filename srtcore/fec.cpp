@@ -535,13 +535,13 @@ void FECFilterBuiltin::ClipPacket(Group& g, const CPacket& pkt)
     ClipData(g, length_net, kflg, timestamp_hw, pkt.data(), pkt.size());
 
     HLOGC(pflog.Debug, log << "FEC DATA PKT CLIP: "
-            << "FLAGS=" << fmt<unsigned>(kflg, hex)
-            << " LENGTH[ne]=" << fmt(length_net, hex)
-            << " TS[he]=" << fmt(timestamp_hw, hex)
-            << " CLIP STATE: FLAGS=" << fmt<unsigned>(g.flag_clip, hex)
-            << " LENGTH[ne]=" << fmt(g.length_clip, hex)
-            << " TS[he]=" << fmt(g.timestamp_clip, hex)
-            << " PL4=" << fmt(*(uint32_t*)&g.payload_clip[0], hex));
+            << "FLAGS=" << fmtm<unsigned>(kflg, hex)
+            << " LENGTH[ne]=" << fmtm(length_net, hex)
+            << " TS[he]=" << fmtm(timestamp_hw, hex)
+            << " CLIP STATE: FLAGS=" << fmtm<unsigned>(g.flag_clip, hex)
+            << " LENGTH[ne]=" << fmtm(g.length_clip, hex)
+            << " TS[he]=" << fmtm(g.timestamp_clip, hex)
+            << " PL4=" << fmtm(*(uint32_t*)&g.payload_clip[0], hex));
 }
 
 // Clipping a control packet does merely the same, just the packet has
@@ -563,13 +563,13 @@ void FECFilterBuiltin::ClipControlPacket(Group& g, const CPacket& pkt)
     ClipData(g, *length_clip, *flag_clip, timestamp_hw, payload, payload_clip_len);
 
     HLOGC(pflog.Debug, log << "FEC/CTL CLIP: "
-            << "FLAGS=" << fmt<unsigned>(*flag_clip, hex)
-            << " LENGTH[ne]=" << fmt(*length_clip, hex)
-            << " TS[he]=" << fmt(timestamp_hw, hex)
-            << " CLIP STATE: FLAGS=" << fmt<unsigned>(g.flag_clip, hex)
-            << " LENGTH[ne]=" << fmt(g.length_clip, hex)
-            << " TS[he]=" << fmt(g.timestamp_clip, hex)
-            << " PL4=" << fmt(*(uint32_t*)&g.payload_clip[0], hex));
+            << "FLAGS=" << fmtm<unsigned>(*flag_clip, hex)
+            << " LENGTH[ne]=" << fmtm(*length_clip, hex)
+            << " TS[he]=" << fmtm(timestamp_hw, hex)
+            << " CLIP STATE: FLAGS=" << fmtm<unsigned>(g.flag_clip, hex)
+            << " LENGTH[ne]=" << fmtm(g.length_clip, hex)
+            << " TS[he]=" << fmtm(g.timestamp_clip, hex)
+            << " PL4=" << fmtm(*(uint32_t*)&g.payload_clip[0], hex));
 }
 
 void FECFilterBuiltin::ClipRebuiltPacket(Group& g, Receive::PrivPacket& pkt)
@@ -586,13 +586,13 @@ void FECFilterBuiltin::ClipRebuiltPacket(Group& g, Receive::PrivPacket& pkt)
     ClipData(g, length_net, kflg, timestamp_hw, pkt.buffer, pkt.length);
 
     HLOGC(pflog.Debug, log << "FEC REBUILT DATA CLIP: "
-            << "FLAGS=" << fmt<unsigned>(kflg, hex)
-            << " LENGTH[ne]=" << fmt(length_net, hex)
-            << " TS[he]=" << fmt(timestamp_hw, hex)
-            << " CLIP STATE: FLAGS=" << fmt<unsigned>(g.flag_clip, hex)
-            << " LENGTH[ne]=" << fmt(g.length_clip, hex)
-            << " TS[he]=" << fmt(g.timestamp_clip, hex)
-            << " PL4=" << fmt(*(uint32_t*)&g.payload_clip[0], hex));
+            << "FLAGS=" << fmtm<unsigned>(kflg, hex)
+            << " LENGTH[ne]=" << fmtm(length_net, hex)
+            << " TS[he]=" << fmtm(timestamp_hw, hex)
+            << " CLIP STATE: FLAGS=" << fmtm<unsigned>(g.flag_clip, hex)
+            << " LENGTH[ne]=" << fmtm(g.length_clip, hex)
+            << " TS[he]=" << fmtm(g.timestamp_clip, hex)
+            << " PL4=" << fmtm(*(uint32_t*)&g.payload_clip[0], hex));
 }
 
 void FECFilterBuiltin::ClipData(Group& g, uint16_t length_net, uint8_t kflg,
@@ -769,10 +769,10 @@ void FECFilterBuiltin::PackControl(const Group& g, signed char index, SrtPacket&
 
     HLOGC(pflog.Debug, log << "FEC: PackControl: hdr("
             << (total_size - g.payload_clip.size()) << "): INDEX="
-            << int(index) << " LENGTH[ne]=" << fmt(g.length_clip, hex)
-            << " FLAGS=" << fmt<int>(g.flag_clip, hex) << " TS=" << fmt(g.timestamp_clip, hex)
+            << int(index) << " LENGTH[ne]=" << fmtm(g.length_clip, hex)
+            << " FLAGS=" << fmtm<int>(g.flag_clip, hex) << " TS=" << fmtm(g.timestamp_clip, hex)
             << " PL(" << g.payload_clip.size() << ")[0-4]="
-            << fmt(*(uint32_t*)&g.payload_clip[0], hex));
+            << fmtm(*(uint32_t*)&g.payload_clip[0], hex));
 
 }
 

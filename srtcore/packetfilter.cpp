@@ -224,6 +224,26 @@ size_t PacketFilter::cacheControlPackets(int32_t seq)
     return m_control.size() - oldsize;
 }
 
+bool PacketFilter::packControlPacket(int32_t seq, int kflg, CPacket& w_packet)
+{
+    ScopedLock lk (m_SenderLock);
+    // First, check how many have been already once extracted.
+    // Note that extracted packages remain here until they are decommissioned.
+
+    if (m_control_extracted == m_control.size()) // includes empty
+    {
+        // Nothing in cache, try to cache.
+        // Here we extract as much control packets as possible.
+        // All packets are being cached. One packet gets extracted here.
+        if (cacheControlPackets(seq) == 0)
+            return false; // still nothing in cache
+    }
+
+    copyPacket(m_control[m_control_extracted], kflg, (w_packet));
+    ++m_control_extracted;
+    return true;
+}
+
 void PacketFilter::copyPacket(SrtPacket& src, int kflg, CPacket& w_packet)
 {
     // Now this should be repacked back to CPacket.
@@ -248,26 +268,6 @@ void PacketFilter::copyPacket(SrtPacket& src, int kflg, CPacket& w_packet)
 
     // Don't set the ID, it will be later set for any kind of packet.
     // Write the timestamp clip into the timestamp field.
-}
-
-bool PacketFilter::packControlPacket(int32_t seq, int kflg, CPacket& w_packet)
-{
-    ScopedLock lk (m_SenderLock);
-    // First, check how many have been already once extracted.
-    // Note that extracted packages remain here until they are decommissioned.
-
-    if (m_control_extracted == m_control.size()) // includes empty
-    {
-        // Nothing in cache, try to cache.
-        // Here we extract as much control packets as possible.
-        // All packets are being cached. One packet gets extracted here.
-        if (cacheControlPackets(seq) == 0)
-            return false; // still nothing in cache
-    }
-
-    copyPacket(m_control[m_control_extracted], kflg, (w_packet));
-    ++m_control_extracted;
-    return true;
 }
 
 size_t PacketFilter::cachedPackets() const
