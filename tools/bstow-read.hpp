@@ -1,7 +1,7 @@
 #ifndef INC_BSTOW_READ_H
 #define INC_BSTOW_READ_H
 
-#include "../testing/testmediabase.hpp"
+#include "testmediabase.hpp"
 
 namespace bstow
 {

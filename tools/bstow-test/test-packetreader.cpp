@@ -61,11 +61,11 @@ int main( int argc, char** argv )
         }
     }
 
-    int logl = ops.getname(-1, "l");
+    int logl = ops.getfree(-1, "l");
     if (logl != -1)
         bstow::g_loglevel = logl;
 
-    vector<string> logfile_spec = ops.getname1("lf");
+    vector<string> logfile_spec = ops["lf"];
     std::ofstream out_logger;
     if (!logfile_spec.empty())
     {

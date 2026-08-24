@@ -1,10 +1,10 @@
 
 // NOTE: DEMONSTRATION purposes only.
 
-#include "../logging/ofmt_iostream.h"
+#include "../../logging/ofmt_iostream.h"
 #include <iomanip>
 
-#include "options.hpp"
+#include "../options.hpp"
 
 using namespace hvu;
 using namespace std;
@@ -36,7 +36,7 @@ int main( int argc, char** argv )
 
         vector<string> logfas = optargs.get(o_logfa);
 
-        string helpspec = optargs.get(o_help);
+        string helpspec = optargs[o_help];
 
         string verbspec = optargs.get(o_verbose);
 
@@ -72,7 +72,6 @@ int main( int argc, char** argv )
         ofprintl(cout, "WITH NEED HELP, here is the option help:");
         for (auto& option: optargs.options())
         {
-            //ofprintl(cout, "    -", fmt(option.name(), fmtc().left().width(10)), option.helptext());
             ofprintl(cout, option.helpitem());
         }
     }

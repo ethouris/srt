@@ -418,7 +418,7 @@ struct OptionProxy
     bool found;
 
     // Universal is to treat it as number
-    template<class TargetType> TargetType as();
+    template<class TargetType> TargetType as() const;
 
     template<class TargetType>
     operator TargetType ()
@@ -435,10 +435,15 @@ struct OptionProxy
             throw NumberError(option);
         }
     }
+
+    template<class TargetType> TargetType as_default() const
+    {
+        return operator TargetType();
+    }
 };
 
 template<class TargetType> inline
-TargetType OptionProxy::as()
+TargetType OptionProxy::as() const
 {
     return OutNumberAs<TargetType>::process(value);
 }
@@ -446,19 +451,19 @@ TargetType OptionProxy::as()
 
 // Specializations are for bool, string, vector<string>
 template<> inline
-bool OptionProxy::as()
+bool OptionProxy::as() const
 {
     return OutBool::process(value);
 }
 
 template<> inline
-std::string OptionProxy::as()
+std::string OptionProxy::as() const
 {
     return OutString::process(value);
 }
 
 template<> inline
-std::vector<std::string> OptionProxy::as()
+std::vector<std::string> OptionProxy::as() const
 {
     return OutList::process(value);
 }
@@ -574,29 +579,29 @@ public:
     }
 
     template <class OutValue>
-    ProxyDef<typename OptionTrapType<OutValue>::type_t> getname(OutValue deflt = OutValue())
+    ProxyDef<typename OptionTrapType<OutValue>::type_t> getfree(OutValue deflt = OutValue())
     {
         typedef typename OptionTrapType<OutValue>::type_t RealType;
         return ProxyDef<RealType> ("", RealType(deflt), false);
     }
 
     template <class OutValue, class... Args>
-    ProxyDef<typename OptionTrapType<OutValue>::type_t> getname(OutValue deflt, const std::string& key, const Args&... further_keys)
+    ProxyDef<typename OptionTrapType<OutValue>::type_t> getfree(OutValue deflt, const std::string& key, const Args&... further_keys)
     {
         typedef typename OptionTrapType<OutValue>::type_t RealType;
         auto i = m_params.find(key);
         if ( i == m_params.end() )
-            return getname(deflt, further_keys...);
+            return getfree(deflt, further_keys...);
         return ProxyDef<RealType> (i->first, i->second, true);
     }
 
     template <class OutValue, class... Args>
     ProxyDef<typename OptionTrapType<OutValue>::type_t> operator()(OutValue deflt, const std::string& key, const Args&... further_keys)
     {
-        return getname(deflt, key, further_keys...);
+        return getfree(deflt, key, further_keys...);
     }
 
-    Proxy getname1(const std::string& key) const
+    Proxy getfree1(const std::string& key) const
     {
         auto i = m_params.find(key);
         if ( i == m_params.end() )
@@ -606,7 +611,7 @@ public:
 
     Proxy operator[](const std::string& name) const
     {
-        return getname1(name);
+        return getfree1(name);
     }
 
 
