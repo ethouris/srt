@@ -526,7 +526,7 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
     return SRT_CMD_KMRSP;
 }
 
-int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t*, size_t, unsigned)
+int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t*, size_t, unsigned, bool)
 {
     LOGP(cnlog.Error, "processSrtMsg_KMRSP: Encryption not enabled at compile time; not expected to receive SRT_CMD_KMRSP");
     return SRT_CMD_NONE;
