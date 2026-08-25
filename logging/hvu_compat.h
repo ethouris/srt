@@ -17,6 +17,16 @@ written by
 #ifndef INC_HVU_COMPAT_H
 #define INC_HVU_COMPAT_H
 
+// This contains portable versions of `strerror` and `localtime`
+// functions:
+// * sys_strerror: uses system-dependent reentrant version:
+//    - Windows: FormatMessageA with allocated buffer
+//    - POSIX/XSI: strerror_r stating it copied the string to the buffer
+//    - GNU: strerror_r stating that it might have not copied, but allocated itself
+// * sys_localtime:
+//    - Windows: localtime_s
+//    - POSIX: localtime_r
+
 #include <string>
 #include <cstring>
 #include <ctime>

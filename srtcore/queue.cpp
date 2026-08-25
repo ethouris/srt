@@ -818,7 +818,7 @@ void CSndQueue::workerSendOrder()
                 m_SendOrderList.requeue(runner, next_send_time); // [TSA] IDEM
                 IF_HEAVY_LOGGING(sync::steady_clock::time_point now = sync::steady_clock::now());
                 HLOGC(qslog.Debug, log << "SND updated to " << FormatTime(next_send_time)
-                        << " (now" << fmtm(count_microseconds(next_send_time - now), showpos) << "us)");
+                        << " (now" << fmt(count_microseconds(next_send_time - now), showpos) << "us)");
             }
             else
             {
@@ -1260,7 +1260,7 @@ bool CMultiplexer::qualifyToHandleRID(EReadStatus    rst,
         {
             HLOGC(cnlog.Debug,
                   log << "RID: socket @" << i->m_iID << " still active (remaining "
-                      << fmtm(count_microseconds(i->m_tsTTL - tsNow) / 1000000.0, fixed) << "s of TTL)...");
+                      << FormatDuration<DUNIT_S>(i->m_tsTTL - tsNow) << " of TTL)...");
         }
 
         const steady_clock::time_point tsLastReq = i->m_pUDT->m_tsLastReqTime;

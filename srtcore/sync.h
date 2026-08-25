@@ -1217,7 +1217,8 @@ inline std::string FormatDuration(const steady_clock::duration& dur, bool plus =
 {
     using namespace hvu;
     double val = DurationUnitName<UNIT>::count(dur);
-    return ofcat(plus && val >= 0 ? OFMT_SV("+") : OFMT_SV(""), fmtm(val, std::fixed), DurationUnitName<UNIT>::name());
+    return plus ? ofcat(fmt(val, std::fixed, std::showpos), DurationUnitName<UNIT>::name())
+                : ofcat(fmt(val, std::fixed), DurationUnitName<UNIT>::name());
 }
 
 inline std::string FormatDuration(const steady_clock::duration& dur)

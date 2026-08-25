@@ -39,6 +39,19 @@ written by
 
 using namespace std;
 
+// XXX think about moving it to some compat utils
+static int Sys_vsnprintf(char* buf, const size_t BUFLEN, const char* fmts, va_list ap)
+{
+#if defined(_MSC_VER) && _MSC_VER < 1900
+    int wlen = _vsnprintf(buf, BUFLEN - 1, fmts, ap);
+    buf[BUFLEN - 1] = '\0'; //JIC
+#else
+    int wlen = vsnprintf(buf, BUFLEN, fmts, ap);
+#endif
+
+    return wlen;
+}
+
 namespace hvu
 {
 namespace logging
@@ -308,27 +321,6 @@ LogDispatcher::Proxy::Proxy(LogDispatcher& guy, const char* f, int l, const std:
     }
 }
 
-LogDispatcher::Proxy& LogDispatcher::Proxy::form(const char* fmts, ...)
-{
-    va_list ap;
-    va_start(ap, fmts);
-    vform(fmts, ap);
-    va_end(ap);
-    return *this;
-}
-
-static int Sys_vsnprintf(char* buf, const size_t BUFLEN, const char* fmts, va_list ap)
-{
-#if defined(_MSC_VER) && _MSC_VER < 1900
-    int wlen = _vsnprintf(buf, BUFLEN - 1, fmts, ap);
-    buf[BUFLEN - 1] = '\0'; //JIC
-#else
-    int wlen = vsnprintf(buf, BUFLEN, fmts, ap);
-#endif
-
-    return wlen;
-}
-
 LogDispatcher::Proxy& LogDispatcher::Proxy::vform(const char* fmts, va_list ap)
 {
     static const int BUFLEN = 512;
@@ -356,6 +348,16 @@ LogDispatcher::Proxy& LogDispatcher::Proxy::vform(const char* fmts, va_list ap)
     os.print(fmt_rawstr(buf, len));
     return *this;
 }
+
+LogDispatcher::Proxy& LogDispatcher::Proxy::form(const char* fmts, ...)
+{
+    va_list ap;
+    va_start(ap, fmts);
+    vform(fmts, ap);
+    va_end(ap);
+    return *this;
+}
+
 
 void LogDispatcher::CreateLogLinePrefix(hvu::ofmt_bufs& serr)
 {

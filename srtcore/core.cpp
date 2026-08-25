@@ -2320,8 +2320,8 @@ int CUDT::processSrtMsg_HSREQ(const uint32_t *srtdata, size_t bytelen, uint32_t 
     }
 
     LOGC(cnlog.Debug, log << "HSREQ/rcv: cmd=" << SRT_CMD_HSREQ << "(HSREQ) len=" << bytelen
-                          << " vers=0x" << fmtm(srtdata[SRT_HS_VERSION], hex)
-                          << " opts=0x" << fmtm(srtdata[SRT_HS_FLAGS], hex)
+                          << " vers=0x" << fmt(srtdata[SRT_HS_VERSION], hex)
+                          << " opts=0x" << fmt(srtdata[SRT_HS_FLAGS], hex)
                           << " delay=" << SRT_HS_LATENCY_RCV::unwrap(srtdata[SRT_HS_LATENCY]));
 
     m_uPeerSrtVersion = srtdata[SRT_HS_VERSION];
@@ -3395,7 +3395,7 @@ bool CUDT::interpretGroup(CUDTSocket* lsn, const int32_t groupdata[], size_t dat
           log << CONID() << "interpretGroup: STATE: HsSide=" << s_hs_side[m_SrtHsSide]
               << " HS MSG: " << MessageTypeStr(UMSG_EXT, hsreq_type_cmd) << " $" << grpid << " type=" << gtp
               << " weight=" << link_weight
-              << " flags=0x" << fmtm(link_flags, hex));
+              << " flags=0x" << fmt(link_flags, hex));
 #endif
 
     // XXX Here are two separate possibilities:
@@ -4873,7 +4873,7 @@ EConnectStatus CUDT::processConnectResponse(const CPacket& response, CUDTExcepti
         {
             HLOGC(cnlog.Debug,
                   log << CONID() << "processConnectResponse: REQ-TIME LOW; got INDUCTION HS response (cookie:"
-                      << fmtm(m_ConnRes.m_iCookie, hex)
+                      << fmt(m_ConnRes.m_iCookie, hex)
                       << " version:" << m_ConnRes.m_iVersion
                       << "), sending CONCLUSION HS with this cookie");
 
@@ -8908,7 +8908,7 @@ void CUDT::processCtrlAck(const CPacket &ctrlpkt, const steady_clock::time_point
         // included, but it also triggers for any other kind of invalid value.
         // This check MUST BE DONE before making any operation on this number.
         LOGC(inlog.Error, log << CONID() << "ACK: IPE/EPE: received invalid ACK value: " << ackdata_seqno
-                << " " << fmtm(ackdata_seqno, hex) << " (IGNORED)");
+                << " " << fmt(ackdata_seqno, hex) << " (IGNORED)");
         return;
     }
 
@@ -9773,7 +9773,7 @@ void CUDT::processCtrl(const CPacket &ctrlpkt)
           log << CONID() << "incoming UMSG:" << ctrlpkt.getType() << " ("
               << MessageTypeStr(ctrlpkt.getType(), ctrlpkt.getExtendedType())
               << ") socket=@" << ctrlpkt.id()
-              << " arg=" << ctrlpkt.getAckSeqNo() << "/0x" << fmtm(ctrlpkt.getAckSeqNo(), hex));
+              << " arg=" << ctrlpkt.getAckSeqNo() << "/0x" << fmt(ctrlpkt.getAckSeqNo(), hex));
 
     // XXX [TSA] This function may need to lock m_ConnectionLock
     switch (ctrlpkt.getType())
@@ -12316,7 +12316,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
 
     int32_t cookie_val = bake(addr);
 
-    HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: new cookie: " << fmtm(cookie_val, hex));
+    HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: new cookie: " << fmt(cookie_val, hex));
 
     // Remember the incoming destination address here and use it as a source
     // address when responding. It's not possible to record this address yet
@@ -12396,7 +12396,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
         if (hs.m_iCookie != cookie_val)
         {
             m_RejectReason = SRT_REJ_RDVCOOKIE;
-            HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ...wrong cookie " << fmtm(cookie_val, hex) << ". Ignoring.");
+            HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ...wrong cookie " << fmt(cookie_val, hex) << ". Ignoring.");
             return m_RejectReason;
         }
 

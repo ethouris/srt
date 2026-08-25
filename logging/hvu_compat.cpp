@@ -21,8 +21,7 @@ written by
 #include <cstring>
 #include <cstdio>
 #include <cerrno>
-
-#include "ofmt.h"
+#include <sstream>
 
 #if defined(__unix__) && !defined(BSD) && !defined(SUNOS)
 #include <features.h>
@@ -38,9 +37,11 @@ namespace hvu
 
 static const char* sys_strerror_fallback(int errnum, char* buf, size_t buflen)
 {
-    ofmt_bufs out;
-    out.print("ERROR CODE ", errnum);
-    size_t outsize = out.copy(buf, buflen - 1);
+    std::stringstream out;
+    static const char lab [] = "ERROR CODE ";
+    out.write(lab, sizeof (lab)-1);
+    out << errnum;
+    size_t outsize = out.rdbuf()->sgetn(buf, buflen - 1);
     buf[outsize] = '\0';
     return buf;
 }

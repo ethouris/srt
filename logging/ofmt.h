@@ -30,8 +30,8 @@ written by
 #include <list>
 #include <sstream>
 
-#if (defined(__cplusplus) && __cplusplus > 199711L) \
- || (defined(_MSVC_LANG) && _MSVC_LANG > 199711L) // Some earlier versions get this wrong
+// Some earlier versions of MSVC get this wrong
+#if (__cplusplus > 199711L) || (defined(_MSVC_LANG) && _MSVC_LANG > 199711L)
 #define OFMT_HAVE_CXX11 1
 #else
 #define OFMT_HAVE_CXX11 0
@@ -39,7 +39,7 @@ written by
 
 // It's safest to bet 2000 + STDNUM + 00, as there is no
 // month number 0 (201701 is January 2017).
-#if (defined(__cplusplus) && __cplusplus > 201700L)
+#if (__cplusplus > 201700L)
 #define OFMT_HAVE_CXX17 1
 #else
 #define OFMT_HAVE_CXX17 0
@@ -199,9 +199,6 @@ typedef basic_fmtc<wchar_t> wfmtc;
 namespace internal
 {
 
-#if OFMT_HAVE_CXX17
-typedef std::string_view ofmt_stringview;
-#else
 // !!! IMPORTANT !!!
 // THIS CLASS IS FOR THE PURPOSE OF DIRECT WRITING TO THE STREAM ONLY.
 // DO NOT use this class for any other purpose and use it also with
@@ -210,6 +207,11 @@ typedef std::string_view ofmt_stringview;
 // written in either a string literal or an array of characters to
 // the output stream using its `write` method, that is, with bypassing
 // any formatting facilities.
+
+// NOTE: This is NOT the same as std::string_view available in C++17.
+// OFMT provides specific overloads for this type, which force interpreting
+// it as "always raw string" (bypasses format configuration). For convenience
+// it has also added a constructor with std::string_view.
 struct ofmt_stringview
 {
 private:
@@ -218,6 +220,9 @@ private:
 
 public:
     explicit ofmt_stringview(const char* dd, size_t ss): d(dd), s(ss) {}
+#if OFMT_HAVE_CXX17
+    ofmt_stringview(const std::string_view& svi): d(svi.data()), s(svi.size()) {}
+#endif
 
     const char* data() const { return d; }
     size_t size() const { return s; }
@@ -225,7 +230,6 @@ public:
     const char* begin() const { return d; }
     const char* end() const { return d + s; }
 };
-#endif
 
 template <size_t N>
 struct check_minus_1
@@ -286,7 +290,6 @@ struct snd_default
     }
 
     // Specializations for direct types
-    // XXX Add also a version for std::string_view, if C++17.
     template <class OutStream>
     void format_send(const internal::ofmt_stringview& val, OutStream& os) const
     {
@@ -399,7 +402,7 @@ inline void snd_ios_manipulate(Stream& os, const std::pair<Manip1, Manip2>& mans
 // Handle special type manipulators like `endl`
 // Unfortunately it must be handled directly in every API
 
-// The idea behind the below "sequence" type is to provide something like
+// The idea behind the below "omsequence" type is to provide something like
 // std::tuple, however this type needs to distinguish two types of manipulators:
 // the ones with their own distinct type, and those being functions (including
 // function templates, as it's with "endl"). The use of std::tuple requires too
@@ -412,44 +415,46 @@ using anystream_manip_fn = StreamType& (StreamType&);
 
 #if OFMT_HAVE_CXX11
 template<typename... Types>
-struct sequence;
+struct omsequence;
 
 template<>
-struct sequence<>
+struct omsequence<>
 {
-    sequence() {}
+    omsequence() {}
 };
 
+// Specialization for function-typed manipulators (left, hex, fixed etc.)
 template<typename Type1, typename... Types>
-struct sequence<anystream_manip_fn<Type1>, Types...>: sequence<Types...>
+struct omsequence<anystream_manip_fn<Type1>, Types...>: omsequence<Types...>
 {
-    typedef sequence<Types...> base_t;
+    typedef omsequence<Types...> base_t;
     anystream_manip_fn<Type1>* head;
-    const sequence<Types...>& next() const { return *this; }
-    sequence<Types...>& next() { return *this; }
-    sequence(const anystream_manip_fn<Type1>& arg1, const Types&... args): head(&arg1), base_t(args...) {}
+    const omsequence<Types...>& next() const { return *this; }
+    omsequence<Types...>& next() { return *this; }
+    omsequence(const anystream_manip_fn<Type1>& arg1, const Types&... args): base_t(args...), head(&arg1) {}
 };
 
+// Specialization for all others (works for setw, setprecision, setiosflags etc.)
 template<typename Type1, typename... Types>
-struct sequence<Type1, Types...>: sequence<Types...>
+struct omsequence<Type1, Types...>: omsequence<Types...>
 {
-    typedef sequence<Types...> base_t;
+    typedef omsequence<Types...> base_t;
     Type1 head;
-    const sequence<Types...>& next() const { return *this; }
-    sequence<Types...>& next() { return *this; }
-    sequence(const Type1& arg1, const Types&... args): head(arg1), base_t(args...) {}
+    const omsequence<Types...>& next() const { return *this; }
+    omsequence<Types...>& next() { return *this; }
+    omsequence(const Type1& arg1, const Types&... args): base_t(args...), head(arg1) {}
 };
 
 
 template <class Stream, class Manip1, class... Manips>
-inline void snd_ios_manipulate(Stream& os, const sequence<Manip1, Manips...>& mans)
+inline void snd_ios_manipulate(Stream& os, const omsequence<Manip1, Manips...>& mans)
 {
     os << mans.head;
     snd_ios_manipulate(os, mans.next());
 }
 
 template <class Stream>
-inline void snd_ios_manipulate(Stream& os, const sequence<>& mans)
+inline void snd_ios_manipulate(Stream& , const omsequence<>& )
 {
 }
 #endif
@@ -527,13 +532,28 @@ internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_
     return fmt_make_proxy(val, internal::snd_ios<internal::anystream_manip_fn<Stream>*>(man));
 }
 
+template <class Value, class Stream> inline
+internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_fn<Stream>*> >
+    fmt(const Value& val, const internal::anystream_manip_fn<Stream>& man)
+{
+    return fmt_make_proxy(val, internal::snd_ios<internal::anystream_manip_fn<Stream>*>(man));
+}
+
 #if OFMT_HAVE_CXX11
 
 template <class Value, typename Manip1, typename... Manip> inline
-internal::fmt_proxy_template<Value, internal::snd_ios<internal::sequence<Manip1, Manip...>> >
+internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<Manip1, Manip...>> >
             fmtm(const Value& val, const Manip1& man1, const Manip&... mans)
 {
-    typedef internal::sequence<Manip1, Manip...> Tuple;
+    typedef internal::omsequence<Manip1, Manip...> Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, mans...)));
+}
+
+template <class Value, typename Stream, typename... Manip> inline
+internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<internal::anystream_manip_fn<Stream>, Manip...>> >
+            fmt(const Value& val, const internal::anystream_manip_fn<Stream>& man1, const Manip&... mans)
+{
+    typedef internal::omsequence<internal::anystream_manip_fn<Stream>, Manip...> Tuple;
     return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, mans...)));
 }
 
@@ -545,6 +565,15 @@ internal::fmt_proxy_template<Value, internal::snd_ios<std::pair<Manip1, Manip2> 
     typedef std::pair<Manip1, Manip2> Tuple;
     return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, man2)));
 }
+
+template <class Value, class Manip2> inline
+internal::fmt_proxy_template<Value, internal::snd_ios<std::pair<internal::ostream_manip_fn, Manip2> > >
+    fmt(const Value& val, const internal::ostream_manip_fn& man1, const Manip2& man2)
+{
+    typedef std::pair<internal::ostream_manip_fn, Manip2> Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, man2)));
+}
+
 
 #endif
 
