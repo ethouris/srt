@@ -967,7 +967,7 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
         // Condition:
         // IF CONN_RENDEZVOUS -> never reset to AGAIN.
         // ELSE IF dest_id == id -> don't reset to AGAIN
-        // ELSE: reset to agian.
+        // ELSE: reset to again.
 
         if (cst == CONN_RENDEZVOUS || i->id == dest_id)
         {
