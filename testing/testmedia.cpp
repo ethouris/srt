@@ -98,7 +98,7 @@ struct CloseReasonMap
             if (reason == SRT_CLSC_USER + 1)
                 extra = " - Error during configuration, transmission not started";
 
-            return fmtcat("User-defined reason #", reason - SRT_CLSC_USER, extra);
+            return ofcat("User-defined reason #", reason - SRT_CLSC_USER, extra);
         }
 
         auto p = at.find(rval);
@@ -556,7 +556,7 @@ void SrtCommon::InitParameters(string host, string path, map<string,string> par)
             && transmit_chunk_size > SRT_LIVE_DEF_PLSIZE)
     {
         if (transmit_chunk_size > max_payload_size)
-            throw std::runtime_error(fmtcat("Chunk size in live mode exceeds ", max_payload_size, " bytes; this is not supported"));
+            throw std::runtime_error(ofcat("Chunk size in live mode exceeds ", max_payload_size, " bytes; this is not supported"));
 
         par["payloadsize"] = fmts(transmit_chunk_size);
     }
@@ -576,7 +576,7 @@ void SrtCommon::InitParameters(string host, string path, map<string,string> par)
             int version = srt::SrtParseVersion(v.c_str());
             if (version == 0)
             {
-                throw std::runtime_error(fmtcat("Value for 'minversion' doesn't specify a valid version: ", v));
+                throw std::runtime_error(ofcat("Value for 'minversion' doesn't specify a valid version: ", v));
             }
             par["minversion"] = fmts(version);
             Verb("\tFIXED: minversion = 0x", fmt(version, fmtc().hex().fillzero().width(8)));
@@ -683,7 +683,7 @@ void SrtCommon::AcceptNewClient()
     {
         srt_close(m_bindsock);
         srt_close(m_sock);
-        Error(fmtcat("accepted connection's payload size ", maxsize, " is too small for required ", transmit_chunk_size, " chunk size"));
+        Error(ofcat("accepted connection's payload size ", maxsize, " is too small for required ", transmit_chunk_size, " chunk size"));
     }
 
     if (int32_t(m_sock) & SRTGROUP_MASK)
@@ -1164,7 +1164,7 @@ void SrtCommon::OpenGroupClient()
         Verb("\t#", i, " [", c.token, "] ", c.host, ":", c.port, VerbNoEOL);
         vector<string> extras;
         if (c.weight)
-            extras.push_back(fmtcat("weight=", c.weight));
+            extras.push_back(ofcat("weight=", c.weight));
 
         if (!c.source.empty())
             extras.push_back("source=" + c.source.str());
@@ -1512,7 +1512,7 @@ void SrtCommon::ConnectClient(string host, int port)
     if (m_transtype == SRTT_LIVE && transmit_chunk_size > size_t(maxsize))
     {
         srt_close(m_sock);
-        Error(fmtcat("accepted connection's payload size ", maxsize, " is too small for required ", transmit_chunk_size, " chunk size"));
+        Error(ofcat("accepted connection's payload size ", maxsize, " is too small for required ", transmit_chunk_size, " chunk size"));
     }
 
     Verb() << " connected.";
@@ -1754,7 +1754,7 @@ void SrtCommon::UpdateGroupStatus(const SRT_SOCKGROUPDATA* grpdata, size_t grpda
 SrtSource::SrtSource(string host, int port, std::string path, const map<string,string>& par)
 {
     Init(host, port, path, par, SRT_EPOLL_IN);
-    hostport_copy = fmtcat(host, ":"_V, port);
+    hostport_copy = ofcat(host, ":"_SV, port);
 }
 
 static void PrintSrtStats(SRTSOCKET sock, bool clr, bool bw, bool stats)
@@ -2330,7 +2330,7 @@ void UdpCommon::Setup(string host, int port, map<string,string> attr)
 
 void UdpCommon::Error(int err, string src)
 {
-    string message = hvu::SysStrError(err);
+    string message = hvu::sys_strerror(err);
 
     if (Verbose::on)
         Verb() << "FAILURE\n" << src << ": [" << err << "] " << message;

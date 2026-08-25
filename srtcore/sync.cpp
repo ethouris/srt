@@ -66,18 +66,18 @@ std::string FormatTime(const steady_clock::time_point& timestamp)
     const uint64_t minutes = total_sec / 60 - (days * 24 * 60) - hours * 60;
     const uint64_t seconds = total_sec - (days * 24 * 60 * 60) - hours * 60 * 60 - minutes * 60;
     steady_clock::time_point frac = timestamp - seconds_from(total_sec);
-    ofmtbufstream out;
+    ofmt_bufs out;
     if (days)
-        out << days << OFMT_RAWSTR("D ");
+        out << days << OFMT_SV("D ");
 
     fmtc d02 = fmtc().dec().fillzero().width(2),
          dec0 = fmtc().dec().fillzero().width(decimals);
 
-    out << fmt(hours, d02) << OFMT_RAWSTR(":")
-        << fmt(minutes, d02) << OFMT_RAWSTR(":")
-        << fmt(seconds, d02) << OFMT_RAWSTR(".")
+    out << fmt(hours, d02) << OFMT_SV(":")
+        << fmt(minutes, d02) << OFMT_SV(":")
+        << fmt(seconds, d02) << OFMT_SV(".")
         << fmt(frac.time_since_epoch().count(), dec0)
-        << OFMT_RAWSTR(" [STDY]");
+        << OFMT_SV(" [STDY]");
     return out.str();
 }
 
@@ -91,31 +91,31 @@ std::string FormatTimeSys(const steady_clock::time_point& timestamp)
     const int64_t                  delta_s =
         static_cast<int64_t>(floor((static_cast<double>(count_microseconds(now_timestamp.time_since_epoch()) % 1000000) + delta_us) / 1000000.0));
     const time_t tt = now_s + delta_s;
-    struct tm    tm = SysLocalTime(tt); // in seconds
+    struct tm    tm = sys_localtime(tt); // in seconds
     char         tmp_buf[512];
     size_t tmp_size = strftime(tmp_buf, 512, "%X.", &tm);
     // Mind the theoretically possible error case
     if (!tmp_size)
         return "<TIME FORMAT ERROR>";
 
-    ofmtbufstream out;
+    ofmt_bufs out;
     out << fmt_rawstr(tmp_buf, tmp_size)
         << fmt(count_microseconds(timestamp.time_since_epoch()) % 1000000, fmtc().fillzero().width(6))
-        << OFMT_RAWSTR(" [SYST]");
+        << OFMT_SV(" [SYST]");
     return out.str();
 }
 
-std::string FormatDurationAuto(const steady_clock::duration& dur)
+std::string FormatDurationAuto(const steady_clock::duration& dur, bool plus)
 {
     int64_t value = count_microseconds(dur);
 
     if (value < 1000)
-        return FormatDuration<DUNIT_US>(dur);
+        return FormatDuration<DUNIT_US>(dur, plus);
 
     if (value < 1000000)
-        return FormatDuration<DUNIT_MS>(dur);
+        return FormatDuration<DUNIT_MS>(dur, plus);
 
-    return FormatDuration<DUNIT_S>(dur);
+    return FormatDuration<DUNIT_S>(dur, plus);
 }
 
 

@@ -8,19 +8,21 @@
  * 
  */
 
-// Implementation file for srt_compat.h
 /*****************************************************************************
 written by
    Haivision Systems Inc.
  *****************************************************************************/
 
-// Prevents from misconfiguration through preprocessor.
+// This file contains the implementation for sys_strerror call
+// with maximum portability.
 
 #include "hvu_compat.h"
 
-#include <string.h>
-#include <stdio.h>
-#include <errno.h>
+#include <cstring>
+#include <cstdio>
+#include <cerrno>
+#include <sstream>
+
 #if defined(__unix__) && !defined(BSD) && !defined(SUNOS)
 #include <features.h>
 #endif
@@ -30,15 +32,17 @@ written by
 #include <windows.h>
 #endif
 
-
-static const char* SysStrError_Fallback(int errnum, char* buf, size_t buflen)
+namespace hvu
 {
-#if defined(_MSC_VER) && _MSC_VER < 1900
-    _snprintf(buf, buflen - 1, "ERROR CODE %d", errnum);
-    buf[buflen - 1] = '\0';
-#else
-    snprintf(buf, buflen, "ERROR CODE %d", errnum);
-#endif
+
+static const char* sys_strerror_fallback(int errnum, char* buf, size_t buflen)
+{
+    std::stringstream out;
+    static const char lab [] = "ERROR CODE ";
+    out.write(lab, sizeof (lab)-1);
+    out << errnum;
+    size_t outsize = out.rdbuf()->sgetn(buf, buflen - 1);
+    buf[outsize] = '\0';
     return buf;
 }
 
@@ -50,7 +54,7 @@ static const char* SysStrError_Fallback(int errnum, char* buf, size_t buflen)
 // a fallback message will be returned, either as returned by the underlying
 // function, or crafted by this function as a response to error in an
 // underlying function. 
-extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
+extern const char * sys_strerror(int errnum, char * buf, size_t buflen)
 {
     if (buf == NULL || buflen < 4) // Required to put ??? into it as a fallback
     {
@@ -61,7 +65,7 @@ extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
     buf[0] = '\0';
 
 #if defined(_WIN32)
-    const char* lpMsgBuf;
+    const char* lpMsgBuf = NULL;
 
     // Note: Intentionally the "fixed char size" types are used despite using
     // character size dependent FormatMessage (instead of FormatMessageA) so that
@@ -83,20 +87,18 @@ extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
             (LPSTR)&lpMsgBuf,
             0, NULL);
 
-    if (lpMsgBuf)
+    if (!lpMsgBuf)
     {
+        return sys_strerror_fallback(errnum, buf, buflen);
+    }
+
 #ifdef _MSC_VER
-        strncpy_s(buf, buflen, lpMsgBuf, _TRUNCATE);
+    strncpy_s(buf, buflen, lpMsgBuf, _TRUNCATE);
 #else
-        strncpy(buf, lpMsgBuf, buflen-1);
-        buf[buflen-1] = 0;
+    strncpy(buf, lpMsgBuf, buflen-1);
+    buf[buflen-1] = 0;
 #endif
-        LocalFree((HLOCAL)lpMsgBuf);
-    }
-    else
-    {
-        SysStrError_Fallback(errnum, buf, buflen);
-    }
+    LocalFree((HLOCAL)lpMsgBuf);
 
     return buf;
 
@@ -111,7 +113,7 @@ extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
     // craft a fallback message in this case.
     if (strerror_r(errnum, buf, buflen) != 0)
     {
-        return SysStrError_Fallback(errnum, buf, buflen);
+        return sys_strerror_fallback(errnum, buf, buflen);
     }
     return buf;
 #else
@@ -128,7 +130,7 @@ extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
     if (!gnu_buffer)
     {
         // This should never happen, so just a paranoid check
-        return SysStrError_Fallback(errnum, buf, buflen);
+        return sys_strerror_fallback(errnum, buf, buflen);
     }
 
     // If they are the same, the message is already copied
@@ -142,3 +144,5 @@ extern const char * hvu_SysStrError(int errnum, char * buf, size_t buflen)
     return buf;
 #endif
 }
+
+} // namespace
