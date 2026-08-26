@@ -28,8 +28,11 @@ TEST(CryptoKMRSP, RejectsMalformedLengths)
     const unsigned srtv = srt::SrtVersion(1, 5, 3);
 
     // Oversize: would overflow uint32_t srtd[SRTDATA_MAXSIZE].
-    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), SRT_CMD_MAXSZ + sizeof(uint32_t), srtv),
+    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), SRT_CMD_MAXSZ + sizeof(uint32_t), srtv, false),
               srt::SRT_CMD_NONE);
+    // Empty / under-a-word: HtoNLA writes nothing and downstream code would read
+    // uninitialised stack from srtd[].
+    EXPECT_EQ(crypt.processSrtMsg_KMRSP(garbage.data(), 0, srtv, false), srt::SRT_CMD_NONE);
 }
 
 
@@ -229,7 +232,7 @@ TEST_F(Crypto, KMREQ_EmptySEK_Does_Not_Downgrade_Secured)
 // Forged KMRSP claiming any peer-failure state must not downgrade a
 // SECURED session. The dispatcher accepts KMRSPs unconditionally so each
 // peerstate branch in processSrtMsg_KMRSP is reachable off-path.
-TEST_F(Crypto, DISABLED_KMRSP_PeerFailure_Does_Not_Downgrade_Secured)
+TEST_F(Crypto, KMRSP_PeerFailure_Does_Not_Downgrade_Secured)
 {
     using namespace srt;
 
@@ -260,8 +263,10 @@ TEST_F(Crypto, DISABLED_KMRSP_PeerFailure_Does_Not_Downgrade_Secured)
         uint32_t wire = (uint32_t)wire_peerstates[i];
         uint32_t input = 0;
         NtoHLA(&input, &wire, 1);
-        EXPECT_EQ(m_crypt.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3)),
-                    SRT_CMD_NONE);
+
+        // NOTE: We do not check the result here; success is only expected with
+        // successful report.
+        m_crypt.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3), false);
 
         EXPECT_EQ(m_crypt.m_RcvKmState, SRT_KM_S_SECURED)
             << "peerstate=" << (int)wire_peerstates[i] << " downgraded m_RcvKmState";
@@ -582,7 +587,7 @@ TEST_F(CryptoCtr, KmrspPeerNoSecretOnNonSecured)
     uint32_t wire = (uint32_t)SRT_KM_S_NOSECRET;
     uint32_t input = 0;
     NtoHLA(&input, &wire, 1);
-    fresh.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3));
+    fresh.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3), true);
 
     // Per crypto.cpp KMRSP NOSECRET branch: RX -> UNSECURED, SND -> NOSECRET.
     EXPECT_EQ(fresh.m_RcvKmState, SRT_KM_S_UNSECURED);
@@ -622,7 +627,7 @@ TEST_F(CryptoCtr, KmrspSuccessTransitionsToSecured)
     std::array<uint32_t, 72> km_nworder;
     NtoHLA(km_nworder.data(), reinterpret_cast<const uint32_t*>(kmmsg), km_len);
 
-    fresh.processSrtMsg_KMRSP(km_nworder.data(), km_len, SrtVersion(1, 5, 3));
+    fresh.processSrtMsg_KMRSP(km_nworder.data(), km_len, SrtVersion(1, 5, 3), true);
 
     EXPECT_EQ(fresh.m_RcvKmState, SRT_KM_S_SECURED);
     EXPECT_EQ(fresh.m_SndKmState, SRT_KM_S_SECURED);
@@ -651,7 +656,7 @@ TEST_F(CryptoCtr, KmrspPeerUnsecuredOnNonSecured)
     uint32_t wire = (uint32_t)SRT_KM_S_UNSECURED;
     uint32_t input = 0;
     NtoHLA(&input, &wire, 1);
-    fresh.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3));
+    fresh.processSrtMsg_KMRSP(&input, sizeof(input), SrtVersion(1, 5, 3), true);
 
     // Per crypto.cpp KMRSP UNSECURED branch: RX -> NOSECRET, SND -> UNSECURED.
     EXPECT_EQ(fresh.m_RcvKmState, SRT_KM_S_NOSECRET);
