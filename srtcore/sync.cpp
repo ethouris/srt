@@ -571,6 +571,8 @@ const CUDTException& GetThreadLocalError()
 
 void SetThreadLocalError(const CUDTException& e)
 {
+    // NOTE: CThreadLocal::operator= will resolve the problem
+    // of the error being NULL.
     AccessThreadLocalObject() = e;
 }
 
