@@ -679,7 +679,7 @@ public:
     using Imp::Imp;
 #else
 
-    // For C++03 simply replicate both constrcutors, even
+    // For C++03 simply replicate both constructors, even
     // if only some of them make sense. In this version also
     // this class cannot be used with a custom value type.
     tp_ofmtstream(std::ostream& src) : IMp(src) {}
