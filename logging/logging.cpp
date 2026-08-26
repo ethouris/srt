@@ -329,7 +329,7 @@ LogDispatcher::Proxy& LogDispatcher::Proxy::vform(const char* fmts, va_list ap)
     if (wlen < 1) // catch both 0 and -1
     {
         // ERROR when formatting
-        os.print(OFMT_SV("<vform:ERROR>"));
+        os << OFMT_SV("<vform:ERROR>");
         return *this;
     }
 
@@ -345,7 +345,7 @@ LogDispatcher::Proxy& LogDispatcher::Proxy::vform(const char* fmts, va_list ap)
         --len;
     }
 
-    os.print(fmt_rawstr(buf, len));
+    os << fmt_rawstr(buf, len);
     return *this;
 }
 

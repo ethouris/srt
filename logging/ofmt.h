@@ -410,10 +410,11 @@ inline void snd_ios_manipulate(Stream& os, const std::pair<Manip1, Manip2>& mans
 
 typedef std::ostream& ostream_manip_fn(std::ostream&);
 
+#if OFMT_HAVE_CXX11
+
 template<class StreamType>
 using anystream_manip_fn = StreamType& (StreamType&);
 
-#if OFMT_HAVE_CXX11
 template<typename... Types>
 struct omsequence;
 
@@ -457,6 +458,28 @@ template <class Stream>
 inline void snd_ios_manipulate(Stream& , const omsequence<>& )
 {
 }
+
+#else
+
+template<class Type>
+struct anystream_manip_remap
+{
+    typedef Type& type(Type&);
+};
+
+template<class Type>
+struct omremap
+{
+    typedef Type type;
+};
+
+template<class Stream>
+struct omremap<Stream& (Stream&)>
+{
+    typedef typename anystream_manip_remap<Stream>::type* type;
+};
+
+
 #endif
 
 template <typename Manip>
@@ -519,11 +542,15 @@ internal::fmt_proxy_template<Value, internal::snd_fmtc_stateous<CharType> > fmtx
     return fmt_make_proxy(val, internal::snd_fmtc_stateous<CharType>(config));
 }
 
+#if OFMT_HAVE_CXX11
+
 template <class Value, class Manip> inline
-internal::fmt_proxy_template<Value, internal::snd_ios<Manip> > fmtm(const Value& val, const Manip& man)
+internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<Manip>> > fmtm(const Value& val, const Manip& man)
 {
-    return fmt_make_proxy(val, internal::snd_ios<Manip>(man));
+    typedef internal::omsequence<Manip> Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(man));
 }
+
 
 template <class Value, class Stream> inline
 internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_fn<Stream>*> >
@@ -538,8 +565,6 @@ internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_
 {
     return fmt_make_proxy(val, internal::snd_ios<internal::anystream_manip_fn<Stream>*>(man));
 }
-
-#if OFMT_HAVE_CXX11
 
 template <class Value, typename Manip1, typename... Manip> inline
 internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<Manip1, Manip...>> >
@@ -559,19 +584,47 @@ internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<inter
 
 #else
 
-template <class Value, class Manip1, class Manip2> inline
-internal::fmt_proxy_template<Value, internal::snd_ios<std::pair<Manip1, Manip2> > > fmtm(const Value& val, const Manip1& man1, const Manip2& man2)
+template<class T1, class T2>
+std::pair<typename internal::omremap<T1>::type, typename internal::omremap<T2>::type> make_safe_pair(T1 t1, T2 t2)
 {
-    typedef std::pair<Manip1, Manip2> Tuple;
-    return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, man2)));
+    typedef typename internal::omremap<T1>::type CleanT1;
+    typedef typename internal::omremap<T2>::type CleanT2;
+    return std::pair<CleanT1, CleanT2>(t1, t2);
+}
+
+template <class Value, class Manip> inline
+internal::fmt_proxy_template<Value, internal::snd_ios< typename internal::omremap<Manip>::type > > fmtm(const Value& val, const Manip& man)
+{
+    typedef typename internal::omremap<Manip>::type Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(man));
+}
+
+template <class Value, class Stream> inline
+internal::fmt_proxy_template<Value, internal::snd_ios<typename internal::anystream_manip_remap<Stream>::type*> >
+    fmt(const Value& val, Stream& man1(Stream&) )
+{
+    typedef Stream& (*fptr)(Stream&);
+    return fmt_make_proxy(val, internal::snd_ios<fptr>(man1));
+}
+
+
+template <class Value, class Manip1, class Manip2> inline
+internal::fmt_proxy_template<Value, internal::snd_ios<
+    std::pair<typename internal::omremap<Manip1>::type, typename internal::omremap<Manip2>::type>
+> > fmtm(const Value& val, const Manip1& man1, const Manip2& man2)
+{
+    typedef std::pair<typename internal::omremap<Manip1>::type, typename internal::omremap<Manip2>::type> Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(make_safe_pair(man1, man2)));
 }
 
 template <class Value, class Manip2> inline
-internal::fmt_proxy_template<Value, internal::snd_ios<std::pair<internal::ostream_manip_fn, Manip2> > >
+internal::fmt_proxy_template<Value,
+    internal::snd_ios<
+        std::pair<internal::ostream_manip_fn, Manip2> > >
     fmt(const Value& val, const internal::ostream_manip_fn& man1, const Manip2& man2)
 {
-    typedef std::pair<internal::ostream_manip_fn, Manip2> Tuple;
-    return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, man2)));
+    typedef std::pair<typename internal::omremap<internal::ostream_manip_fn>::type, typename internal::omremap<Manip2>::type> Tuple;
+    return fmt_make_proxy(val, internal::snd_ios<Tuple>(make_safe_pair(man1, man2)));
 }
 
 
@@ -682,7 +735,7 @@ public:
     // For C++03 simply replicate both constructors, even
     // if only some of them make sense. In this version also
     // this class cannot be used with a custom value type.
-    tp_ofmtstream(std::ostream& src) : IMp(src) {}
+    tp_ofmtstream(std::ostream& src) : Imp(src) {}
 
     tp_ofmtstream() {}
 
@@ -741,6 +794,8 @@ public:
         return *this;
     }
 
+// Additionally for C++11
+#if OFMT_HAVE_CXX11
     template<class Value, class... Args>
     tp_ofmtstream& fwd(const Value& val, const Args&... args)
     {
@@ -755,8 +810,6 @@ public:
         return fwd(args...);
     }
 
-// Additionally for C++11
-#if OFMT_HAVE_CXX11
     void print_chain()
     {
     }
@@ -780,6 +833,21 @@ public:
     {
         print_chain(args...);
         Imp::base() << std::endl;
+        return *this;
+    }
+#else
+
+    template<class Value>
+    tp_ofmtstream& fwd(const Value& val)
+    {
+        Imp::base() << val;
+        return *this;
+    }
+
+    template<class Value, class Value2>
+    tp_ofmtstream& fwd(const Value& val, const Value2& val2)
+    {
+        Imp::base() << val << val2;
         return *this;
     }
 #endif
