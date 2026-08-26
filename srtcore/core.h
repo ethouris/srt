@@ -475,7 +475,7 @@ public: // internal API
 
     uint32_t        peerLatency_us()        const { return m_iPeerTsbPdDelay_ms * 1000; }
     int             peerIdleTimeout_ms()    const { return m_config.iPeerIdleTimeout_ms; }
-    size_t          maxPayloadSize()        const { return m_iMaxSRTPayloadSize; }
+    size_t          maxDataPayloadSize()    const { return m_iMaxDataPayloadSize; }
     size_t          OPT_PayloadSize()       const { return m_config.zExpPayloadSize; }
     size_t          payloadSize()           const
     {
@@ -488,7 +488,7 @@ public: // internal API
 
         // If SRTO_PAYLOADSIZE was remaining with 0 (default for FILE mode)
         // then return the maximum payload size per packet.
-        return m_iMaxSRTPayloadSize;
+        return m_iMaxDataPayloadSize;
     }
 
     int             sndLossLength()               { return m_pSndLossList->getLossLength(); }
@@ -536,10 +536,19 @@ public: // internal API
 
     int minSndSize(int len = 0) const
     {
-        const int ps = (int) maxPayloadSize();
+        const int ps = (int) maxDataPayloadSize();
         if (len == 0) // weird, can't use non-static data member as default argument!
             len = ps;
         return m_config.bMessageAPI ? (len+ps-1)/ps : 1;
+    }
+
+    // This returns the biggest possible size for an SRT payload with
+    // the default 1500 MTU size. When in doubt, use AF_INET, which returns
+    // bigger size, if needed for a safe allocation.
+    static int controlPayloadSize(int family = AF_INET)
+    {
+        int header = family == AF_INET6 ? CPacket::UDP_HDR_SIZE_IPv6 : CPacket::UDP_HDR_SIZE;
+        return CPacket::ETH_MAX_MTU_SIZE - header;
     }
 
     static int32_t makeTS(const time_point& from_time, const time_point& tsStartTime)
@@ -879,7 +888,7 @@ private:
 
     int sndSpaceLeft()
     {
-        return static_cast<int>(sndBuffersLeft() * maxPayloadSize());
+        return static_cast<int>(sndBuffersLeft() * maxDataPayloadSize());
     }
 
     int sndBuffersLeft()
@@ -946,7 +955,7 @@ private: // Identification
 #endif
 
 private:
-    int                       m_iMaxSRTPayloadSize;     // Maximum/regular payload size, in bytes
+    int                       m_iMaxDataPayloadSize;    // Maximum data payload size, in bytes
     int                       m_iTsbPdDelay_ms;         // Rx delay to absorb burst, in milliseconds
     int                       m_iPeerTsbPdDelay_ms;     // Tx delay that the peer uses to absorb burst, in milliseconds
     bool                      m_bTLPktDrop;             // Enable Too-late Packet Drop
