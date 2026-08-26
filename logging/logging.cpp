@@ -39,6 +39,7 @@ written by
 
 using namespace std;
 
+#if HVU_ENABLE_LOGGING
 // XXX think about moving it to some compat utils
 static int Sys_vsnprintf(char* buf, const size_t BUFLEN, const char* fmts, va_list ap)
 {
@@ -51,6 +52,7 @@ static int Sys_vsnprintf(char* buf, const size_t BUFLEN, const char* fmts, va_li
 
     return wlen;
 }
+#endif
 
 namespace hvu
 {

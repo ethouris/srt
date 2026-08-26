@@ -432,7 +432,7 @@ struct omsequence<anystream_manip_fn<Type1>, Types...>: omsequence<Types...>
     anystream_manip_fn<Type1>* head;
     const omsequence<Types...>& next() const { return *this; }
     omsequence<Types...>& next() { return *this; }
-    omsequence(const anystream_manip_fn<Type1>& arg1, const Types&... args): base_t(args...), head(&arg1) {}
+    omsequence(anystream_manip_fn<Type1> arg1, const Types&... args): base_t(args...), head(arg1) {}
 };
 
 // Specialization for all others (works for setw, setprecision, setiosflags etc.)
@@ -554,14 +554,14 @@ internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<Manip
 
 template <class Value, class Stream> inline
 internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_fn<Stream>*> >
-    fmtm(const Value& val, const internal::anystream_manip_fn<Stream>& man)
+    fmtm(const Value& val, internal::anystream_manip_fn<Stream> man)
 {
     return fmt_make_proxy(val, internal::snd_ios<internal::anystream_manip_fn<Stream>*>(man));
 }
 
 template <class Value, class Stream> inline
 internal::fmt_proxy_template<Value, internal::snd_ios<internal::anystream_manip_fn<Stream>*> >
-    fmt(const Value& val, const internal::anystream_manip_fn<Stream>& man)
+    fmt(const Value& val, internal::anystream_manip_fn<Stream> man)
 {
     return fmt_make_proxy(val, internal::snd_ios<internal::anystream_manip_fn<Stream>*>(man));
 }
@@ -576,7 +576,7 @@ internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<Manip
 
 template <class Value, typename Stream, typename... Manip> inline
 internal::fmt_proxy_template<Value, internal::snd_ios<internal::omsequence<internal::anystream_manip_fn<Stream>, Manip...>> >
-            fmt(const Value& val, const internal::anystream_manip_fn<Stream>& man1, const Manip&... mans)
+            fmt(const Value& val, internal::anystream_manip_fn<Stream> man1, const Manip&... mans)
 {
     typedef internal::omsequence<internal::anystream_manip_fn<Stream>, Manip...> Tuple;
     return fmt_make_proxy(val, internal::snd_ios<Tuple>(Tuple(man1, mans...)));
