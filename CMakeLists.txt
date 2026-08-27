@@ -68,6 +68,9 @@ set1_if(SYMLINKABLE LINUX OR DARWIN OR BSD OR SUNOS OR CYGWIN OR GNU_OS)
 # (using elimination method - note that MINGW includes also potentially LLVM/Clang version)
 set1_if(MICROSOFT   WIN32 AND (NOT MINGW AND NOT CYGWIN))
 
+set_var_report(VAR_REPORT LINUX BSD GNU_OS DARWIN SUNOS OHOS WIN32 MINGW CYGWIN ANDROID)
+message(STATUS "PLATFORM: ${VAR_REPORT}")
+
 # Cmake-version-dependent symbols for convenience
 set1_if(NEED_DESTINATION  ${CMAKE_VERSION} VERSION_LESS "3.14.0")
 
@@ -349,7 +352,7 @@ option(ENABLE_UNITTESTS_DISCOVERY "Do unit test discovery when UT enabled" ON)
 # Built-in optional features
 option(ENABLE_BONDING "Should the bonding functionality be enabled?" ON)
 option(ENABLE_ENCRYPTION "Enable encryption in SRT" ON)
-option(ENABLE_LOCALIF_WIN32 "Enable local interface check ability on Windows (adds Iphlpapi.lib dep)" ON)
+option(ENABLE_LOCALIF_WIN32 "Enable local interface check ability on Windows (adds Iphlpapi.lib dep)" OFF)
 option(ENABLE_AEAD "Enable AEAD API preview in SRT" ON)
 option(ENABLE_MAXREXMITBW "Enable SRTO_MAXREXMITBW (limiting rexmit bandwidth)" ON)
 

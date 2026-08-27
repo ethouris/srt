@@ -270,7 +270,7 @@ private:
 
     void throw_invalid_index(int i) const
     {
-        throw std::runtime_error(hvu::fmtcat(OFMT_RAWSTR("Index "), i, OFMT_RAWSTR(" out of range")));
+        throw std::runtime_error(hvu::ofcat(OFMT_SV("Index "), i, OFMT_SV(" out of range")));
     }
 
 private:
@@ -1272,17 +1272,19 @@ struct MapProxy
 
 inline std::string FormatBinaryString(const uint8_t* bytes, size_t size)
 {
-    using namespace hvu;
-
     if ( size == 0 )
         return "";
 
-    ofmtbufstream os;
-    os.setup(fmtc().fillzero().uhex());
+    using namespace std;
+
+    // Not using ofmt because we are better off here
+    // with stateous format settings.
+    ostringstream os;
+    os << internal << hex << uppercase << setfill('0');
 
     for (size_t i = 0; i < size; ++i)
     {
-        os << fmtx<int>(bytes[i], fmtc().width(2));
+        os << setw(2) << int(bytes[i]);
     }
     return os.str();
 }
