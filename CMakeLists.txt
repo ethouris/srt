@@ -61,7 +61,7 @@ set1_if(DARWIN	   (${CMAKE_SYSTEM_NAME} MATCHES "Darwin") OR APPLE)
 set1_if(GNU_OS      ${CMAKE_SYSTEM_NAME} MATCHES "GNU") # Use GNU_OS to not confuse with gcc
 set1_if(OHOS        ${CMAKE_SYSTEM_NAME} MATCHES "OHOS")
 set1_if(SUNOS       ${SYSNAME_LC} MATCHES "sunos")
-set1_if(POSIX       LINUX OR DARWIN OR BSD OR SUNOS OR ANDROID OR OHOS OR (CYGWIN AND CYGWIN_USE_POSIX) OR GNU_OS)
+set1_if(POSIX       LINUX OR DARWIN OR BSD OR SUNOS OR ANDROID OR OHOS OR (CYGWIN AND ENABLE_CYGWIN_POSIX) OR GNU_OS)
 set1_if(SYMLINKABLE LINUX OR DARWIN OR BSD OR SUNOS OR CYGWIN OR GNU_OS)
 
 # "MICROSOFT" means "compiling on Microsoft Windows using Visual Studio compiler"
@@ -340,7 +340,7 @@ option(ENABLE_SHOW_PROJECT_CONFIG "Enable show Project Configuration" OFF)
 option(ENABLE_CLANG_TSA "Enable Clang Thread Safety Analysis" OFF)
 option(ENABLE_CODE_COVERAGE "Enable code coverage reporting" OFF)
 option(ENABLE_PROFILE "Should instrument the code for profiling. Ignored for non-GNU compiler." ${ENABLE_PROFILE_DEFAULT})
-option(ENABLE_TESTING "Should the Developer Test Applications be Built?" OFF)
+option(ENABLE_TOOLS "Should the Developer Applications be Built?" OFF)
 option(ENABLE_GETNAMEINFO "In-logs sockaddr-to-string should do rev-dns" OFF)
 option(ENABLE_LOGGING "Should logging be enabled" ON)
 option(ENABLE_HEAVY_LOGGING "Should heavy debug logging be enabled" OFF)
@@ -368,6 +368,12 @@ option(USE_GNUSTL "Get c++ library/headers from the gnustl.pc" OFF)
 set_default(USE_ENCLIB openssl-evp)
 set(USE_ENCLIB "${USE_ENCLIB}" CACHE STRING "The crypto library that SRT uses")
 set_property(CACHE USE_ENCLIB PROPERTY STRINGS "openssl" "openssl-evp" "gnutls" "mbedtls" "botan")
+
+# Compat
+
+if (ENABLE_TESTING)
+	set (ENABLE_TOOLS ON)
+endif()
 
 # ---------------------------------------------------------
 # Post-checks for having compiler type and version selected
@@ -1575,8 +1581,8 @@ if (ENABLE_APPS)
 		srt_add_application(srt-tunnel ${VIRTUAL_srtsupport})
 	endif()
 
-	if (ENABLE_TESTING)
-		message(STATUS "DEVEL APPS (testing): ENABLED")
+	if (ENABLE_TOOLS)
+		message(STATUS "DEVEL APPS (tools): ENABLED")
 
 		macro(srt_add_testprogram name)
 			# Variables in macros are not local. Clear them forcefully.
@@ -1586,9 +1592,9 @@ if (ENABLE_APPS)
 			# of source files at the moment when defining the target
 			# and it can't be altered later.
 			#
-			# For testing applications, every application has its exclusive
+			# For tools applications, every application has its exclusive
 			# list of source files in its own Manifest file.
-			MafReadDir(testing ${name}.maf SOURCES SOURCES_app)
+			MafReadDir(tools ${name}.maf SOURCES SOURCES_app)
 			srt_add_program_dont_install(${name} ${SOURCES_app})
 
 			# srt_make_application is not called for this, so add accordingly
@@ -1626,7 +1632,7 @@ if (ENABLE_APPS)
 		endif()
 
 	else()
-		message(STATUS "DEVEL APPS (testing): DISABLED")
+		message(STATUS "DEVEL APPS (tools): DISABLED")
 	endif()
 
 

@@ -50,28 +50,29 @@ static bool g_skip_flushing = false;
 
 using namespace std;
 using namespace srt;
+using namespace hvu;
 
 hvu::logging::Logger applog("app", srt::logging::logger_config(), true, "srt-file");
 
 int main( int argc, char** argv )
 {
-    vector<OptionScheme> optargs;
+    OptionHandler optargs;
 
     OptionName
         o_loglevel ((optargs), "<severity=fatal|error|note|warning|debug> Minimum severity for logs", "ll",  "loglevel"),
-        o_buffer   ((optargs), "<size[b]=1456> Size of the single reading operation", "b", "buffer"),
+        o_buffer   ((optargs), "<size[B]=1456> Size of the single reading operation", "b", "buffer"),
         o_verbose  ((optargs), " Print extra verbos output", "v",   "verbose"),
         o_noflush  ((optargs), " Do not wait safely 5 seconds at the end to flush buffers", "sf",  "skipflush"),
-        o_help      ((optargs), " This help", "?",   "help", "-help")
+        o_help     ((optargs), " This help", "?",   "help", "-help")
             ;
 
-    options_t params = ProcessOptions(argv, argc, optargs);
+    optargs.process(argv, argc);
 
-    bool need_help = OptionPresent(params, o_help);
+    bool need_help = optargs.exists(o_help);
 
     //*
     cerr << "OPTIONS (DEBUG)\n";
-    for (auto o: params)
+    for (auto& o: optargs.params())
     {
         cerr << "[" << o.first << "] ";
         copy(o.second.begin(), o.second.end(), ostream_iterator<string>(cerr, " "));
@@ -95,36 +96,36 @@ int main( int argc, char** argv )
         cerr << "       - only a filename, also as a relative path\n";
         cerr << "       - file://con ('con' as host): designates stdin or stdout\n";
         cerr << "OPTIONS HELP SYNTAX: -option <parameter[unit]=default[meaning]>:\n";
-        for (auto os: optargs)
-            cout << OptionHelpItem(*os.pid) << endl;
+        for (auto os: optargs.options())
+            cout << os.helpitem() << endl;
         return 1;
     }
 
-    vector<string> args = params[""];
+    vector<string> args = optargs[""];
     if ( args.size() < 2 )
     {
         cerr << "Usage: " << argv[0] << " <source> <target>\n";
         return 1;
     }
 
-    string loglevel = Option<OutString>(params, "error", o_loglevel);
+    string loglevel = optargs.get(o_loglevel, "error");
     hvu::logging::LogLevel::type lev = hvu::logging::parse_level(loglevel);
     srt::setloglevel(lev);
 
-    bool verbo = OptionPresent(params, o_verbose);
+    bool verbo = optargs.exists(o_verbose);
     if (verbo)
     {
         Verbose::on = true;
         Verbose::cverb = &std::cout;
     }
 
-    string bs = Option<OutString>(params, "", o_buffer);
+    string bs = optargs.get(o_buffer);
     if ( bs != "" )
     {
         ::g_buffer_size = stoi(bs);
     }
 
-    string sf = Option<OutString>(params, "no", o_noflush);
+    string sf = optargs.get(o_noflush, "no");
     if (sf == "" || !false_names.count(sf))
         ::g_skip_flushing = true;
 
