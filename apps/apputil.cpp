@@ -148,7 +148,7 @@ string Join(const vector<string>& in, string sep)
     if (in.empty())
         return "";
 
-    hvu::ofmtbufstream os;
+    hvu::ofmt_bufs os;
 
     os << in[0];
     for (auto i = in.begin()+1; i != in.end(); ++i)

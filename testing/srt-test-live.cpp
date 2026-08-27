@@ -1031,7 +1031,7 @@ void TestLogHandler(void* opaque, int level, const char* file, int line, const c
 
     time_t now;
     time(&now);
-    struct tm local = hvu::SysLocalTime(now);
+    struct tm local = hvu::sys_localtime(now);
 
     cerr << "[" << std::put_time(&local, "%c") << " " << file << ":" << line
         << "(" << area << ")]{" << level << "} " << prefix << message
