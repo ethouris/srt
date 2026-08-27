@@ -473,7 +473,7 @@ bool CSendOrderList::update(SocketHolder::sockiter_t point, SocketHolder::EResch
     if (!n.pinned())
     {
         // New insert, not considering reschedule.
-        HLOGC(qslog.Debug, log << "CSndUList: UPDATE: inserting @" << point->id() << " anew T=" << FormatTime(ts) << nowrel.str());
+        HLOGC(qslog.Debug, log << "CSendOrderList: UPDATE: inserting @" << point->id() << " anew T=" << FormatTime(ts) << nowrel.str());
 
         m_Schedule.insert(ts, point);
         if (n.is_top())
@@ -487,7 +487,7 @@ bool CSendOrderList::update(SocketHolder::sockiter_t point, SocketHolder::EResch
     // EXISTING NODE - reschedule if requested
     if (reschedule == SocketHolder::DONT_RESCHEDULE)
     {
-        HLOGC(qslog.Debug, log << "CSndUList: UPDATE: NOT rescheduling @" << point->id()
+        HLOGC(qslog.Debug, log << "CSendOrderList: UPDATE: NOT rescheduling @" << point->id()
                 << " - remains T=" << FormatTime(n.time) << oldrel.str());
         return false;
     }
@@ -495,13 +495,13 @@ bool CSendOrderList::update(SocketHolder::sockiter_t point, SocketHolder::EResch
     // NOTE: Rescheduling means to speed up release time. So apply only if new time is earlier.
     if (n.time <= ts)
     {
-        HLOGC(qslog.Debug, log << "CSndUList: UPDATE: NOT rescheduling @" << point->id()
+        HLOGC(qslog.Debug, log << "CSendOrderList: UPDATE: NOT rescheduling @" << point->id()
                 << " to +" << FormatDurationAuto(ts - n.time)
                 << " - remains T=" << FormatTime(n.time) << oldrel.str());
         return false;
     }
 
-    HLOGC(qslog.Debug, log << "CSndUList: UPDATE: rescheduling @" << point->id() << " T=" << FormatTime(n.time)
+    HLOGC(qslog.Debug, log << "CSendOrderList: UPDATE: rescheduling @" << point->id() << " T=" << FormatTime(n.time)
             << nowrel.str() << " - speedup by " << FormatDurationAuto(n.time - ts));
 
     // Special case for the first element - no replacement needed, just update.
