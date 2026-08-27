@@ -3,6 +3,11 @@
 
 namespace hvu
 {
+
+const OptionScheme::Args OptionScheme::ARG_NONE = Args { 0 };
+const OptionScheme::Args OptionScheme::ARG_ONE = Args { 1 };
+const OptionScheme::Args OptionScheme::ARG_VAR = Args { -1 };
+
 OptionScheme::Args OptionName::DetermineTypeFromHelpText(const std::string& helptext)
 {
     if (helptext.empty())

@@ -225,9 +225,10 @@ struct OptionScheme
         return true;
     }
 
-    static constexpr Args ARG_NONE = Args { 0 };
-    static constexpr Args ARG_ONE = Args { 1 };
-    static constexpr Args ARG_VAR = Args { -1 };
+    // Can't use constexpr - in C++11 it's still trying to link externally.
+    static const Args ARG_NONE;
+    static const Args ARG_ONE;
+    static const Args ARG_VAR;
     static Args ARG_FIXED(int n) { return checkPositive(n), Args { n }; }
     static Args ARG_OPT(int n) { return checkPositive(n), Args { -n-1 }; }
 
