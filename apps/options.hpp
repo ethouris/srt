@@ -201,17 +201,18 @@ struct OptionScheme
 
     Args type;
 
-    constexpr static void checkPositive(int n)
+    constexpr static int checkPositive(int n)
     {
         if (n < 1)
             throw std::invalid_argument("Value expected >= 1");
+        return 1;
     }
 
     static constexpr Args ARG_NONE = Args { 0 };
     static constexpr Args ARG_ONE = Args { 1 };
     static constexpr Args ARG_VAR = Args { -1 };
-    static constexpr Args ARG_FIXED(int n) { checkPositive(n); return Args { n }; }
-    static constexpr Args ARG_OPT(int n) { checkPositive(n); return Args { -n-1 }; }
+    static constexpr Args ARG_FIXED(int n) { return checkPositive(n), Args { n }; }
+    static constexpr Args ARG_OPT(int n) { return checkPositive(n), Args { -n-1 }; }
 
     OptionScheme(const OptionScheme&) = default;
     OptionScheme(OptionScheme&& src)

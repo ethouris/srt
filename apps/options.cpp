@@ -251,7 +251,7 @@ Found:
         // Find the key in the scheme. If not found, treat it as ARG_NONE.
         for (const auto& a: w_params)
         {
-            if (a.first == "") // discard free argumetns
+            if (a.first == "") // discard free arguments
                 continue;
 
             auto it = found_schemes.find(a.first);

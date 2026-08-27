@@ -305,7 +305,7 @@ arguments
 
 * `unknown`(R): In the schemed version, contains all options that were
 not present in the scheme; such options by default grab no arguments
-from the command line - the application mey decide to bail out if
+from the command line - the application may decide to bail out if
 any such option has been specified
 
 * `params`(R): Returns the complete map of all options
