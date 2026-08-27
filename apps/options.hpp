@@ -44,7 +44,7 @@ inline bool CheckTrue(const std::vector<std::string>& in, bool ifempty = true)
 template<class Type, class Input>
 struct NumberConvertFwd
 {
-    static Type convert(const Input& s)
+    static Type convert(const Input& )
     {
         typename Type::incorrect_version wrong = Type::incorrect_version;
         return Type();
