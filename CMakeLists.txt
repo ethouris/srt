@@ -68,6 +68,9 @@ set1_if(SYMLINKABLE LINUX OR DARWIN OR BSD OR SUNOS OR CYGWIN OR GNU_OS)
 # (using elimination method - note that MINGW includes also potentially LLVM/Clang version)
 set1_if(MICROSOFT   WIN32 AND (NOT MINGW AND NOT CYGWIN))
 
+set_var_report(VAR_REPORT LINUX BSD GNU_OS DARWIN SUNOS OHOS WIN32 MINGW CYGWIN ANDROID)
+message(STATUS "PLATFORM: ${VAR_REPORT}")
+
 # Cmake-version-dependent symbols for convenience
 set1_if(NEED_DESTINATION  ${CMAKE_VERSION} VERSION_LESS "3.14.0")
 
