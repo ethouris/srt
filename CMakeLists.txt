@@ -352,7 +352,7 @@ option(ENABLE_UNITTESTS_DISCOVERY "Do unit test discovery when UT enabled" ON)
 # Built-in optional features
 option(ENABLE_BONDING "Should the bonding functionality be enabled?" ON)
 option(ENABLE_ENCRYPTION "Enable encryption in SRT" ON)
-option(ENABLE_LOCALIF_WIN32 "Enable local interface check ability on Windows (adds Iphlpapi.lib dep)" ON)
+option(ENABLE_LOCALIF_WIN32 "Enable local interface check ability on Windows (adds Iphlpapi.lib dep)" OFF)
 option(ENABLE_AEAD "Enable AEAD API preview in SRT" ON)
 option(ENABLE_MAXREXMITBW "Enable SRTO_MAXREXMITBW (limiting rexmit bandwidth)" ON)
 
