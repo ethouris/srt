@@ -67,7 +67,9 @@ struct OptionSetter_SYS
     }
 };
 
-template<class DOMAIN, class Object>
+extern int dupa;
+
+template<typename Domain, typename Object>
 struct OptionSetterRebind
 {
 };
@@ -76,7 +78,6 @@ struct SocketOption
 {
     enum Type { STRING = 0, INT, INT64, BOOL, ENUM };
     enum Binding { PRE = 0, POST };
-    //enum Domain { SYSTEM, SRT };
     struct SYSTEM {};
     struct SRT {};
     enum Mode {FAILURE = -1, LISTENER = 0, CALLER = 1, RENDEZVOUS = 2};
