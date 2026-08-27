@@ -1373,6 +1373,20 @@ inline Integer number_slices(Integer total_size, Integer slice_size)
     return (total_size + slice_size - 1) / slice_size;
 }
 
+template<class Integer, class Divstruct>
+inline std::pair<Integer, Integer> divmod_makepair(const Divstruct& dv)
+{
+    return std::make_pair(dv.quot, dv.rem);
+}
+
+// This exposes std::div using std::pair as result so that you can use Tie
+// In C++17 it would be unnecessary - you do simply:
+// - auto [q, r] = std::div(num, den);
+template<class Integer>
+inline std::pair<Integer, Integer> divmod(Integer num, Integer den)
+{
+    return divmod_makepair<Integer>(std::div(num, den));
+}
 
 // Property accessor definitions
 //
