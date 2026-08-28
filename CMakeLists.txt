@@ -362,6 +362,7 @@ option(USE_OPENSSL_PC "Use pkg-config to find OpenSSL libraries" ON)
 option(SRT_USE_OPENSSL_STATIC_LIBS "Link OpenSSL libraries statically." OFF)
 option(USE_BUSY_WAITING "Enable more accurate sending times at a cost of potentially higher CPU load" OFF)
 option(USE_GNUSTL "Get c++ library/headers from the gnustl.pc" OFF)
+option(USE_PRIVATE_GTEST "Always fetch GTest package from git, even if installed" OFF)
 
 # Non-boolean options
 
@@ -731,7 +732,7 @@ if (NOT ENABLE_STDCXX_SYNC)
 		# old versions of Android (__ANDROID_API__ < 21) are known to not provide it
 		check_symbol_exists(pthread_condattr_setclock "pthread.h" HAVE_PTHREAD_CONDATTR_SETCLOCK)
 		test_requires_clock_gettime(HAVE_MONOTONIC_CLOCK_GETTIME MONOTONIC_CLOCK_LINKLIB)
-		if (NOT HAVE_MONOTONIC_CLOCK_GETTIME OR NOT HAVE_PTHREAD_CONDATTR_SETCLOCK)
+		if (NOT HAVE_MONOTONIC_CLOCK_GETTIME)
 			message(FATAL_ERROR "Your platform does not support CLOCK_MONOTONIC. Build with -DENABLE_MONOTONIC_CLOCK=OFF.")
 		endif()
 		if (NOT MONOTONIC_CLOCK_LINKLIB STREQUAL "")
@@ -1613,7 +1614,7 @@ if (ENABLE_APPS)
 			target_compile_options(uriparser-test PRIVATE -DTEST)
 			srt_set_stdcxx(uriparser-test "${USE_CXX_STD_APP}")
 		endif()
-		
+
 		srt_add_testprogram(srt-test-live)
 		srt_make_application(srt-test-live)
 
@@ -1680,19 +1681,22 @@ if (ENABLE_UNITTESTS)
 
 	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-	# Version ranges are only supported with CMake 3.19 or later.
-	# Need GTest v1.10 or higher to support GTEST_SKIP.
-	if (${CMAKE_VERSION} VERSION_LESS "3.19.0")
+	message(STATUS "Configuring Google Test...")
+
+	# Desired is the version less than 1.12, but although
+	# CMake supports version ranges since 3.19, it's not
+	# supported by the GTest finder. Risky as it is, we just
+	# require the minimum version.
+	if (NOT USE_PRIVATE_GTEST)
 		find_package(GTest 1.10)
+		if (NOT GTEST_FOUND)
+			message(STATUS "GTEST not found! Fetching from git.")
+			set (USE_PRIVATE_GTEST ON)
+		endif()
 	else()
-		# NOTE: CMake will issue a warning here, but there's nothing
-		# you can do. In older versions, which do satisfy this condition,
-		# but do not support this feature, it will be a warning, but
-		# the version is still satisfied as required, so just ignore it.
-		find_package(GTest 1.10...1.12)
+		message(STATUS "NOT checking GTEST - forced fetching")
 	endif()
-	if (NOT GTEST_FOUND)
-		message(STATUS "GTEST not found! Fetching from git.")
+	if (USE_PRIVATE_GTEST)
 		include(googletest)
 		fetch_googletest(
 			${PROJECT_SOURCE_DIR}/scripts
@@ -1700,6 +1704,8 @@ if (ENABLE_UNITTESTS)
 		)
 		set(GTEST_BOTH_LIBRARIES "gtest_main" CACHE STRING "Add gtest_main target")
 	endif()
+
+	message(STATUS "Configuring Google Test... DONE.")
 
 	MafReadDir(test filelist.maf
 		HEADERS SOURCES_unittests
