@@ -44,7 +44,7 @@ inline bool CheckTrue(const std::vector<std::string>& in, bool ifempty = true)
 template<class Type, class Input>
 struct NumberConvertFwd
 {
-    static Type convert(const Input& s)
+    static Type convert(const Input& )
     {
         typename Type::incorrect_version wrong = Type::incorrect_version;
         return Type();
@@ -193,6 +193,23 @@ struct OptionArgSpec
     }
 };
 
+template<int N>
+struct checkPositiveInteger
+{
+    static const bool valid = N >= 0;
+};
+
+template<bool pos>
+struct checkPositiveIntegerValid
+{
+};
+
+template<>
+struct checkPositiveIntegerValid<true>
+{
+    static const bool valid = true;
+};
+
 struct OptionScheme
 {
     const OptionName* pid;
@@ -201,17 +218,19 @@ struct OptionScheme
 
     Args type;
 
-    constexpr static void checkPositive(int n)
+    static bool checkPositive(int n)
     {
         if (n < 1)
             throw std::invalid_argument("Value expected >= 1");
+        return true;
     }
 
-    static constexpr Args ARG_NONE = Args { 0 };
-    static constexpr Args ARG_ONE = Args { 1 };
-    static constexpr Args ARG_VAR = Args { -1 };
-    static constexpr Args ARG_FIXED(int n) { checkPositive(n); return Args { n }; }
-    static constexpr Args ARG_OPT(int n) { checkPositive(n); return Args { -n-1 }; }
+    // Can't use constexpr - in C++11 it's still trying to link externally.
+    static const Args ARG_NONE;
+    static const Args ARG_ONE;
+    static const Args ARG_VAR;
+    static Args ARG_FIXED(int n) { return checkPositive(n), Args { n }; }
+    static Args ARG_OPT(int n) { return checkPositive(n), Args { -n-1 }; }
 
     OptionScheme(const OptionScheme&) = default;
     OptionScheme(OptionScheme&& src)
