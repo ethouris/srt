@@ -80,7 +80,7 @@
 #include <logger_fas.h> // because contains the declaration of logger_config
 
 using namespace std;
-
+using namespace srt;
 
 
 struct ForcedExit: public std::runtime_error

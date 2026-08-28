@@ -86,11 +86,10 @@
 
 using namespace std;
 using namespace srt;
+using namespace hvu;
 
 hvu::logging::Logger applog("app", srt::logging::logger_config(), true, "srt-live");
 
-
-map<string,string> g_options;
 
 struct ForcedExit: public std::runtime_error
 {
@@ -400,7 +399,7 @@ int main( int argc, char** argv )
         }
     } cleanupobj;
 
-    vector<OptionScheme> optargs;
+    OptionHandler optargs;
 
     OptionName
         o_timeout   ((optargs), "<timeout[s]=0> Data transmission timeout", "t",   "to", "timeout" ),
@@ -428,14 +427,19 @@ int main( int argc, char** argv )
         o_help      ((optargs), "[special=logging] This help", "?",   "help", "-help")
             ;
 
-    options_t params = ProcessOptions(argv, argc, optargs);
+    OptionStatus ost = optargs.process(argv, argc);
+    bool need_help = optargs.exists(o_help);
 
-    bool need_help = OptionPresent(params, o_help);
+    if (!ost)
+    {
+        ofprintl(cerr, "Invalid option specified: -", ost.error_option, ": ", ost.error_code_str());
+        need_help = true;
+    }
 
-    vector<string> args = params[""];
+    vector<string> args = optargs[""];
 
     string source_spec, target_spec;
-    vector<string> groupspec = Option<OutList>(params, vector<string>{}, o_group);
+    vector<string> groupspec = optargs.get(o_group);
     vector<string> source_items, target_items;
 
     if (!need_help)
@@ -488,7 +492,7 @@ int main( int argc, char** argv )
 
     // Check verbose option before extracting the argument so that Verb()s
     // can be displayed also when they report something about option parsing.
-    string verbose_val = Option<OutString>(params, "no", o_verbose);
+    string verbose_val = optargs.get(o_verbose, "no");
 
     unique_ptr<ofstream> pout_verb;
 
@@ -547,7 +551,7 @@ int main( int argc, char** argv )
 
     if (need_help)
     {
-        string helpspec = Option<OutString>(params, o_help);
+        string helpspec = optargs.get(o_help);
         if (helpspec == "logging")
         {
             cerr << "Logging options:\n";
@@ -612,14 +616,14 @@ int main( int argc, char** argv )
         cerr << "       - only a filename, also as a relative path\n";
         cerr << "       - file://con ('con' as host): designates stdin or stdout\n";
         cerr << "OPTIONS HELP SYNTAX: -option <parameter[unit]=default[meaning]>:\n";
-        for (auto os: optargs)
-            cout << OptionHelpItem(*os.pid) << endl;
+        for (auto os: optargs.options())
+            cout << os.helpitem() << endl;
         return 1;
     }
 
-    int timeout = Option<OutNumber>(params, "30", o_timeout);
-    size_t chunk = Option<OutNumber>(params, "0", o_chunk);
-    if ( chunk == 0 )
+    int timeout = optargs.get(o_timeout, 30);
+    size_t chunk = optargs.get(o_chunk);
+    if (chunk == 0)
     {
         chunk = SRT_LIVE_DEF_PLSIZE;
     }
@@ -628,20 +632,20 @@ int main( int argc, char** argv )
         transmit_chunk_size = chunk;
     }
 
-    transmit_use_sourcetime = OptionPresent(params, o_stime);
-    size_t bandwidth = Option<OutNumber>(params, "0", o_bandwidth);
-    transmit_bw_report = Option<OutNumber>(params, "0", o_report);
-    bool crashonx = OptionPresent(params, o_crash);
+    transmit_use_sourcetime = optargs.exists(o_stime);
+    size_t bandwidth = optargs.get(o_bandwidth);
+    transmit_bw_report = optargs.get(o_report);
+    bool crashonx = optargs.exists(o_crash);
 
-    string loglevel = Option<OutString>(params, "error", o_loglevel);
-    vector<string> logfa = Option<OutList>(params, o_logfa);
-    string logfile = Option<OutString>(params, "", o_logfile);
-    transmit_stats_report = Option<OutNumber>(params, "0", o_stats);
+    string loglevel = optargs.get(o_loglevel, "error");
+    vector<string> logfa = optargs.get(o_logfa);
+    string logfile = optargs.get(o_logfile, "");
+    transmit_stats_report = optargs.get(o_stats);
 
-    bool internal_log = OptionPresent(params, o_logint);
-    bool skip_flushing = OptionPresent(params, o_skipflush);
+    bool internal_log = optargs.exists(o_logint);
+    bool skip_flushing = optargs.exists(o_skipflush);
 
-    string hook = Option<OutString>(params, "", o_hook);
+    string hook = optargs.get(o_hook, "");
     if (hook != "")
     {
         vector<string> hargs;
@@ -668,7 +672,7 @@ int main( int argc, char** argv )
     }
 
     string pfextra;
-    SrtStatsPrintFormat statspf = ParsePrintFormat(Option<OutString>(params, "default", o_statspf), (pfextra));
+    SrtStatsPrintFormat statspf = ParsePrintFormat(optargs.get(o_statspf, "default"), (pfextra));
     if (statspf == SRTSTATS_PROFMAT_INVALID)
     {
         cerr << "Invalid stats print format\n";
@@ -689,7 +693,7 @@ int main( int argc, char** argv )
     }
 
     // Options that require integer conversion
-    size_t stoptime = Option<OutNumber>(params, "0", o_stoptime);
+    size_t stoptime = optargs.get(o_stoptime);
     std::ofstream logfile_stream; // leave unused if not set
 
     srt_setloglevel(hvu::logging::parse_level(loglevel));
@@ -760,7 +764,7 @@ int main( int argc, char** argv )
         }
     }
 
-    string retryphrase = Option<OutString>(params, "", o_retry);
+    string retryphrase = optargs.get(o_retry);
     if (retryphrase != "")
     {
         if (retryphrase[retryphrase.size()-1] == 'a')
@@ -903,7 +907,9 @@ int main( int argc, char** argv )
             Verb(", ... ", VerbNoEOL);
             g_interrupt_reason = "reading";
             const MediaPacket& data = src->Read(chunk);
-            Verb(", ", data.payload.size(), "  ->  ", VerbNoEOL);
+            Verb(", ", data.payload.size(),
+                    " T=", data.time,
+                    "  ->  ", VerbNoEOL);
             if ( data.payload.empty() && src->End() )
             {
                 Verb("EOS");

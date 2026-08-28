@@ -1,10 +1,11 @@
 
 
 SOURCES
-srt-test-live.cpp
+srt-test-relay.cpp
 testmedia.cpp
+testactivemedia.cpp
 ../apps/apputil.cpp
-../apps/statswriter.cpp
+../apps/options.cpp
 ../apps/verbose.cpp
 ../apps/socketoptions.cpp
 ../apps/uriparser.cpp
