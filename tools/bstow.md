@@ -120,7 +120,7 @@ must be detected and handled when translating the timestamps.
 (or the first one has simply the 0 value). The value should designate the time
 when the packet has to be send according to the smooth time distribution rules
 of the live stream, expressed as the time distance between this packet and the
-first packet of the series. Note that even though the first pakcet of a block
+first packet of the series. Note that even though the first packet of a block
 does define its PLAYTIME, the SENDTIME is still defined according to this rule.
 
 As an example how this might be distributed, a list of packets:
@@ -173,7 +173,7 @@ this one and the first packet of the previous series
    * Prepare compensation for the difference between these two values:
 
       - if sending was too fast, simply add the difference to the send time
-of the first pakcet
+of the first packet
 
       - if sending was too slow, remember the difference in the compensation
 register and distribute it with the next sent packets as much as possible
@@ -225,7 +225,7 @@ default, so the default mode is live: packets are sent immediately upon arrival.
 The application obtains the sendtime directly from the BSTOW reader and sets it
 into the packet's timestamp; sleeps between sending is another matter.
 
-Amont the sendmode values there are 3 possibilities:
+Among the sendmode values there are 3 possibilities:
 
 * 0 (default): live mode (send immediately upon arrival)
 * 1: eager mode - send with speedup and controlled speed
