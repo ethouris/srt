@@ -53,20 +53,20 @@ The header consists of 4 bytes, in HEX: `BE 57 08 88`.
 The parameter uses special value-length encoding:
 
 1. 4 bytes are read as A, B, C, D.
-2. If byte A has the 0x80 bit clear, the format is: A[label], B:C:D[value]
+2. If byte A has the 0x80 bit clear, the format is: LABEL = A, VALUE = B:C:D
 3. If byte A has the 0x80 bit set, then:
-   * A:B & 0x7F : label
-   * C:D : length
-   * Further bytes of that length: value
+   * LABEL = A:B & 0x7FFF
+   * LENGTH = C:D
+   * VALUE = Further bytes of that LENGTH
 
-All of values, labels and length specifications are encoded as Big Endian.
+All multi-byte values are encoded as Big Endian.
 
 So, for example:
 
 * 01 03 AB 02 - LABEL=1, VALUE=0x03AB02
 * 80 02 00 04 DE AD BE EF - LABEL=2 VALUE=0xDEADBEEF
 
-Parameters are the following:
+Parameters use the following LABELs:
 
 * LENGTH: 1 : length of the payload
 * PLAYTIME: 2 : block's timestamp (DTS in video terms)
@@ -144,7 +144,7 @@ As an example how this might be distributed, a list of packets:
 
 The reading rules are the following:
 
-1. The reading starts with the packet that declares the first in the series.
+1. The reading starts with the packet declared as the first in the series.
 Sending time should be immediate and the application should use this as a base
 time for any further sendings. The playtime should be remembered for next
 calculations as well, and also the time when sending of the first packet happened.
@@ -180,12 +180,11 @@ register and distribute it with the next sent packets as much as possible
 
 Example reading session for the above packet example:
 
-Initial playtime: 1000
-Initial sendtime: 10000
+Initial playtime = 1000, sendtime = 10000
 
 Sending times with comments:
 
-* 0001: 10000 (taking initial)
+* 0001: 10000 (taking initial, sendtime base = 10000)
 * 0002: 10003
 * 0003: 10006
 * 0004: 10009
@@ -198,7 +197,7 @@ Sending times with comments:
 * 0011: 10030
 * 0012: 10033
 * 0013: 10036
-* 0014: [calculations (see below)] : 10040
+* 0014: 10040 (see Calculations below, new sendtime base = 10040)
 * 0015: 10043
 * 0016: 10046
 
