@@ -241,12 +241,14 @@ library. It provides all necessary platform-specific initializations, sets up
 global data, and starts the SRT GC thread. If this function isn't explicitly
 called, it will be called automatically when creating the first socket.
 
-NOTE 1: It is strongly recommended that you don't rely on the automatic
-initialization and call this function explicitly. The initialization is
-required to be done in the main thread of the application, so the application
-shall ensure it is done this way before creating the first socket.
+NOTE: The initialization can be nested - see details in `srt_cleaup()`.
 
-NOTE 2: Initialization can be nested - see details in `srt_cleaup()`.
+IMPORTANT: This function must be called in the main thread of the application.
+Calling it in the C++ global constructor should be fine, but this method is
+not portable due to hidden dependencies and CRT rules in some systems. It is
+therefore strongly recommended that it be called from the main function of the
+application.
+
 
 |      Returns                  |                                                                 |
 |:----------------------------- |:--------------------------------------------------------------- |
@@ -271,48 +273,34 @@ int srt_cleanup(void);
 ```
 
 This function cleans up all global SRT resources and shall be called just before
-exiting the `main()` function of the application that uses the SRT library
-(also intermediately). The cleanup action will still be called from the C++
-global destructor, although relying on this is strongly discouraged.
+exiting the `main()` function of the application that uses the SRT library.
+The cleanup action will still be called from the C++ global destructor,
+although relying on this is strongly discouraged due to portability issues.
 
 **IMPORTANT NOTES**:
 
-1. This function must be called from within `main()`, otherwise the behavior
-is undefined. Calling it from locations such as C++ global destructor, or
-other thread than the main application's thread, may cause unpredictable
-behavior, result in crashes or deadlocks. If it is by some reason not possible
-to call this function at the right execution point, it's safer to rely on
-the automatic cleanup of SRT, even though it's still discouraged.
+1. The startup/cleanup calls have an instance counter. The `srt_cleanup()`
+call should be done the same number of times as [`srt_startup`](#srt_startup).
+Automatic cleanup on application exit will still be done; this counter only
+prevents too early cleanup.
 
-2. The startup/cleanup calls have an instance counter.  This means that if you
-call [`srt_startup`](#srt_startup) multiple times, you need to call the
-`srt_cleanup` function exactly the same number of times.
+2. The automatic cleanup called from the C++ global destructor **is not an
+automatic way to call this function**. These cleanup methods work with
+different assumptions: The automatic cleanup assumes that all SRT threads are
+exit (joined), so the data reclamation is done without regarding of any other
+threads using the resources, while `srt_cleanup()` will only work correctly
+if it's called within `main()` and it assumes that all SRT resources remain
+intact. Calling `srt_cleanup()` from any location outside of `main()` may cause
+an undefined behavior.
 
 **KNOWN ISSUES**:
 
-1. There's a known problem in Microsoft CRT, which uses a specific way of
-cleanup for an application that uses libraries bound as DLL. In this case all
-threads of the application - including those created by DLL libraries - are
-being forcefully terminated before the global C++ destructors are running. In
-SRT it means that threads are stopped before they can do their part of the
-cleanup, which can result in leaks, and if the `srt_cleanup()` is called from
-such a global destructor, it may also result in deadlocks or crashes.
-
-Therefore in case of Microsoft Windows (including Cygwin) you should do one
-of the following:
-
-- Do not call `srt_cleanup()` and rely on the automatic destruction. Mind
-though that the application must ensure that no SRT socket is leaked without
-closing, otherwise this will result in a deadlock. Also, if there remain any
-SRT sockets not cleaned up by GC at the destruction time, these resources
-will leak - although if this is at the application's exit, system will reclaim
-it anyway.
-
-- Call `srt_cleanup()` anyhow (even indirectly through some cleanup-specific
-facility) and make sure this is called from the application's `main()`
-execution point. In case of Microsoft CRT this means in practice to call the
-destruction before Microsoft CRT does partial destruction and breaks the
-cleanup chain.
+1. In Microsoft CRT, in which `main()` function is provided as a POSIX
+emulation layer, the function `ExitProcess()`, called after this function
+exits, causes first killing all threads created by any DLL library used by the
+application. The only way to ensure proper resource reclamation portable way
+is to call `srt_cleanup()` in `main()` (or ensure the same thing in a dependent
+library), or give it up to the automatic cleanup. 
 
 2. The `fork()` POSIX function causes creation of an application's duplicate,
 just without any threads other than the main one. This means that the data
