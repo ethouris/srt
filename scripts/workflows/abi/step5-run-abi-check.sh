@@ -6,7 +6,11 @@ sha256sum libsrt-base.dump
 sha256sum libsrt-pr.dump
 
 RES=0
-abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump || RES=$?
+EXTRA_ARGS=
+[[ -f suppressed-symbols.txt ]] && EXTRA_ARGS+=" -skip-symbols suppressed-symbols.txt"
+set -o xtrace
+abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump $EXTRA_ARGS || RES=$?
+set +o xtrace
 # Flatten the report for download-preview
 cd compat_reports
 REPORT=$(find . -name *.html)
