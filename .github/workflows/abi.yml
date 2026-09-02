@@ -85,7 +85,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: suppression_file
-        path: gitview_base/_build/suppressed-symbols.txt
+        path: suppressed-symbols.txt
 
   check_abi:
     name: Compare ABI
