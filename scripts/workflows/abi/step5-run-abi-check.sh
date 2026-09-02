@@ -18,7 +18,7 @@ abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump $EXTR
 set +o xtrace
 # Flatten the report for download-preview
 cd compat_reports
-REPORT=$(find . -name *.html)
+REPORT=$(find libsrt -name *.html)
 if [[ -n $REPORT ]]; then
 	cp $REPORT compat_report.html
 
