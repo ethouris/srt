@@ -26,9 +26,8 @@ cp gitview_base/_build/libsrt-base.dump .
 # Assume gitview_pr is still there!
 SUPPRESS_FILE=gitview_pr/scripts/workflows/abi/suppressed-symbols-$SRT_BASE.txt
 if [[ -f $SUPPRESS_FILE ]]; then
-	echo "Found suppress config file, copying to suppressed-symbols.txt"
 	cp $SUPPRESS_FILE suppressed-symbols.txt
 else
-	echo "No suppress file"
+	touch suppressed-symbols.txt
 fi
 
