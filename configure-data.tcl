@@ -481,7 +481,7 @@ proc postprocess {} {
 		
 				set er [catch {exec brew info openssl} res]
 				if { $er } {
-					error "You must have OpenSSL installed from 'brew' tool. The standard Mac version is inappropriate."
+					error "Required OpenSSL installed from 'brew' tool. The standard Mac version is inappropriate."
 				}
 
 				lappend ::cmakeopt "-DOPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include"
