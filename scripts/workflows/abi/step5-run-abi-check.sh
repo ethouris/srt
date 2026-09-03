@@ -7,12 +7,16 @@ sha256sum libsrt-pr.dump
 
 RES=0
 EXTRA_ARGS=
-if [[ -f suppressed-symbols.txt ]]; then
-	EXTRA_ARGS+=" -skip-symbols suppressed-symbols.txt";
-	echo "SUPPRESSED symbols: -----------"
-	cat suppressed-symbols.txt
-	echo "---------------------"
-fi
+for n in types symbols; do
+	if [[ -f suppressed-$n.txt ]]; then
+		EXTRA_ARGS+=" -skip-$n suppressed-$n.txt";
+		echo "SUPPRESSED $n: -----------"
+		cat suppressed-$n.txt
+		echo "---------------------"
+	else
+		echo "NO $n suppression file"
+	fi
+done
 set -o xtrace
 abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump $EXTRA_ARGS || RES=$?
 set +o xtrace
