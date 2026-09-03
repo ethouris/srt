@@ -85,7 +85,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: suppression_file
-        path: suppressed-symbols.txt
+        path: |
+            suppressed-symbols.txt
+            suppressed-types.txt
 
   check_abi:
     name: Compare ABI
