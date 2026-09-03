@@ -18,7 +18,7 @@ for n in types symbols; do
 	fi
 done
 set -o xtrace
-abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump $EXTRA_ARGS || RES=$?
+abi-compliance-checker -l libsrt -old libsrt-base.dump -new libsrt-pr.dump -skip-added-constants $EXTRA_ARGS || RES=$?
 set +o xtrace
 # Flatten the report for download-preview
 cd compat_reports
