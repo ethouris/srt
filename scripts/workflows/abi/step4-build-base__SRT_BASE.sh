@@ -24,8 +24,8 @@ cd $WD
 cp gitview_base/_build/libsrt-base.dump .
 
 # Assume gitview_pr is still there!
-SUPPRESS_PREFIX=gitview_pr/scripts/workflows/abi/suppressed-
-SUPPRESS_SUFFIX=-$SRT_BASE.txt
+SUPPRESS_PREFIX=gitview_pr/scripts/workflows/abi/suppressed
+SUPPRESS_SUFFIX=$SRT_BASE.txt
 
 for n in types symbols; do
 	SUPPRESS_FILE=$SUPPRESS_PREFIX-$n-$SUPPRESS_SUFFIX
