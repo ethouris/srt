@@ -1765,7 +1765,7 @@ bool CRcvQueue::worker_TryAcceptedSocket(const CPacket& pkt, const sockaddr_any&
     }
 
     // Acquired in findPeer, so this can be now kept without acquiring m_GlobControlLock.
-    SocketKeeper skeep = CUDT::keep_noacquire(s);
+    SocketKeeper keep_found = CUDT::keep_noacquire(s);
 
     CUDT* u = &s->core();
     if (u->m_bBroken || u->m_bClosing)

@@ -37,7 +37,7 @@ sout << "Value: " << v << " (" << fmt(v, fmtc().hex().width(2).fillzero()) << ")
 
 NOTE 1: It is possible to use `fmt` directly with standard streams, without
 the `ofmt_refs` wrapper (you need to include `"ofmt_iostream.h"` header), but
-these stream wrapper classes (`ofmt_bufs` and `ofmt_refs`) kepp settings always
+these stream wrapper classes (`ofmt_bufs` and `ofmt_refs`) keep settings always
 default, and therefore for any string value (raw string, `std::string` and
 internal string view type) writes them directly to the stream, bypassing any
 formatting. This bypassing can be also forced by `fmt_rawstr()`.
