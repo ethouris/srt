@@ -892,6 +892,20 @@ inline Stream& ofwd(Stream& out, const Arg1& arg1, const Args&... args)
     return ofwd(out, args...);
 }
 
+template<typename Container>
+inline Container& ofpush(Container& out)
+{
+    return out;
+}
+
+template<typename Container, typename Arg1, typename... Args>
+inline Container& ofpush(Container& out, const Arg1& arg1, const Args&... args)
+{
+    out.push_back(fmts(arg1));
+    return ofpush(out, args...);
+}
+
+
 template<typename Stream, typename Arg1, typename... Args>
 inline Stream& ofprint(Stream& out, const Arg1& arg1, const Args&... args)
 {
