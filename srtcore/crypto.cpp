@@ -138,7 +138,7 @@ void srt::CCryptoControl::createFakeSndContext()
 #ifdef SRT_ENABLE_ENCRYPTION
 
 int srt::CCryptoControl::processSrtMsg_KMREQ(
-        const uint32_t* srtdata, size_t bytelen, int hsv, unsigned srtv,
+        const uint32_t* srtdata, size_t bytelen, SrtVersionInfo vi,
         uint32_t pw_srtdata_out[], size_t& w_srtlen)
 {
     unsigned char* kmdata = reinterpret_cast<unsigned char*>(pw_srtdata_out);
@@ -149,7 +149,7 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
 
     // They actually mean the same thing in HSv5, but removal of bidirectional can be
     // only done when the compat with <1.3.0 is allowed to be broken.
-    const bool bidirectional = hsv > CUDT::HS_VERSION_UDT4;
+    const bool bidirectional = vi.hs_version > CUDT::HS_VERSION_UDT4;
     const bool kmx_update = m_hRcvCrypto;
     SRT_KM_STATE failure_state = m_KmSecret.len == 0 ? SRT_KM_S_NOSECRET : SRT_KM_S_BADSECRET;
     bool bUseGCM = false;
@@ -181,7 +181,7 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
                 || (m_iCryptoMode == CSrtConfig::CIPHER_MODE_AES_GCM))
             bUseGCM = true;
 
-        m_bUseGcm153 = srtv <= SrtVersion(1, 5, 3);
+        m_bUseGcm153 = vi.peer_srt_version <= SrtVersion(1, 5, 3);
 
         // INITIAL ACTIONS (first time KMREQ received):
         // If encryption is on (we know that by having m_KmSecret nonempty), create
@@ -308,6 +308,19 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
                     else
                     {
                         m_SndKmState = SRT_KM_S_SECURED;
+
+                        // Ok, this is responder side, so we use HSD_RESPONDER
+                        if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST) && m_hSndCrypto && m_hRcvCrypto)
+                        {
+                            // "me" is RESPONDER, which means
+                            // - set distinction to RESPONDER for ENCRYPTION,
+                            // - set distinction to INITIATOR for DECRYPTION.
+
+                            HaiCrypt_UpdateDistinction(m_hSndCrypto, HSD_RESPONDER);
+                            HaiCrypt_UpdateDistinction(m_hRcvCrypto, HSD_INITIATOR);
+                            HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: SECDIST supported: SND=RESPONDER, RCV=INITIATOR");
+                        }
+
                     }
 
                     LOGC(cnlog.Note, log << FormatKmMessage("processSrtMsg_KMREQ", SRT_CMD_KMREQ, bytelen)
@@ -395,7 +408,7 @@ inline std::pair<SRT_KM_STATE, SRT_KM_STATE> ErraticKMState(uint32_t state_value
     return std::make_pair(state, state);
 }
 
-int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, unsigned srtv, bool is_handshake)
+int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, SrtVersionInfo vi, bool is_handshake)
 {
     uint32_t srtd[SRTDATA_MAXSIZE];
     size_t srtlen = len/sizeof(uint32_t);
@@ -497,11 +510,23 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: key[0]: len=" << m_SndKmMsg[0].MsgLen << " retry=" << m_SndKmMsg[0].iPeerRetry
             << "; key[1]: len=" << m_SndKmMsg[1].MsgLen << " retry=" << m_SndKmMsg[1].iPeerRetry);
 
-        m_bUseGcm153 = srtv <= SrtVersion(1, 5, 3);
+        m_bUseGcm153 = vi.peer_srt_version <= SrtVersion(1, 5, 3);
         if (m_hRcvCrypto != NULL)
             HaiCrypt_UpdateGcm153(m_hRcvCrypto, m_bUseGcm153);
         if (m_hSndCrypto != NULL)
             HaiCrypt_UpdateGcm153(m_hSndCrypto, m_bUseGcm153);
+
+        // Ok, this is initiator side and now we know also the peer's caps
+        if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST) && m_hSndCrypto && m_hRcvCrypto)
+        {
+            // "me" is INITIATOR, which means
+            // - set distinction to INITIATOR for ENCRYPTION.
+            // - set distinction to RESPONDER for DECRYPTION,
+
+            HaiCrypt_UpdateDistinction(m_hSndCrypto, HSD_INITIATOR);
+            HaiCrypt_UpdateDistinction(m_hRcvCrypto, HSD_RESPONDER);
+            HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: SECDIST supported: SND=INITIATOR, RCV=RESPONDER");
+        }
     }
 
     LOGP(cnlog.Note, FormatKmMessage("processSrtMsg_KMRSP", SRT_CMD_KMRSP, len));
@@ -512,7 +537,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
 #else
 
 int srt::CCryptoControl::processSrtMsg_KMREQ(
-        const uint32_t*, size_t, int, unsigned, // ignore input
+        const uint32_t*, size_t, SrtVersionInfo, // ignore input
         uint32_t pw_srtdata_out[], size_t& w_srtlen)
 {
     // It's ok that this is reported as error because this happens in a scenario,
