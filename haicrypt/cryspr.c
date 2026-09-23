@@ -463,12 +463,12 @@ static int crysprFallback_MsEncrypt(
 				const bool old_aead = ctx->use_gcm_153; // SRT v1.5.2 to v1.5.3.
 				if (old_aead)
 				{
-                    hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
+					hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
 					memcpy(aad, in_data[0].pfx, sizeof(aad));
 				}
 				else
 				{
-                    hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Gcm);
+					hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Gcm);
 
 					for (size_t i = 0; i < sizeof(aad) / 4; ++i)
 						*((uint32_t*)aad + i) = htonl(*((uint32_t*)in_data[0].pfx + i));
@@ -481,8 +481,8 @@ static int crysprFallback_MsEncrypt(
 				}
 			}
 			else
-            {
-                hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
+			{
+				hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
 #if CRYSPR_HAS_AESCTR
 				cryspr_cb->cryspr->aes_ctr_cipher(true, aes_key, iv, in_data[0].payload, in_data[0].len,
 						&out_msg[pfx_len]);
@@ -610,12 +610,12 @@ static int crysprFallback_MsDecrypt(CRYSPR_cb *cryspr_cb, hcrypt_Ctx *ctx,
 					const bool old_aead = ctx->use_gcm_153; // SRT v1.5.2 to v1.5.3.
 					if (old_aead)
 					{
-                        hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
+						hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
 						memcpy(aad, in_data[0].pfx, sizeof(aad));
 					}
 					else
 					{
-                        hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Gcm);
+						hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Gcm);
 						for (size_t i = 0; i < sizeof(aad) / 4; ++i)
 							*((uint32_t*)aad + i) = htonl(*((uint32_t*)in_data[0].pfx + i));
 					}
@@ -629,8 +629,8 @@ static int crysprFallback_MsDecrypt(CRYSPR_cb *cryspr_cb, hcrypt_Ctx *ctx,
 					out_len = in_data[0].len - HAICRYPT_AUTHTAG_MAX;
 				}
 				else
-                {
-                    hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
+				{
+					hcrypt_SetIV((iv), pki, ctx->salt, ctx->cfg.distinction, hcrypt_IV_Ctr);
 #if CRYSPR_HAS_AESCTR
 					cryspr_cb->cryspr->aes_ctr_cipher(false, aes_key, iv, in_data[0].payload, in_data[0].len,
 						out_txt);

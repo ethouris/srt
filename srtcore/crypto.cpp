@@ -309,10 +309,10 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
                     {
                         m_SndKmState = SRT_KM_S_SECURED;
 
-                        // Ok, this is responder side, so we use HSD_RESPONDER
+                        // Ok, this is responder side, so we use HSD_RESPONDER for sender
                         if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST) && m_hSndCrypto && m_hRcvCrypto)
                         {
-                            // "me" is RESPONDER, which means
+                            // Agent is RESPONDER, which means
                             // - set distinction to RESPONDER for ENCRYPTION,
                             // - set distinction to INITIATOR for DECRYPTION.
 
@@ -519,7 +519,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         // Ok, this is initiator side and now we know also the peer's caps
         if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST) && m_hSndCrypto && m_hRcvCrypto)
         {
-            // "me" is INITIATOR, which means
+            // Agent is INITIATOR, which means
             // - set distinction to INITIATOR for ENCRYPTION.
             // - set distinction to RESPONDER for DECRYPTION,
 
@@ -551,7 +551,7 @@ int srt::CCryptoControl::processSrtMsg_KMREQ(
     return SRT_CMD_KMRSP;
 }
 
-int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t*, size_t, unsigned, bool)
+int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t*, size_t, SrtVersionInfo, bool)
 {
     LOGP(cnlog.Error, "processSrtMsg_KMRSP: Encryption not enabled at compile time; not expected to receive SRT_CMD_KMRSP");
     return SRT_CMD_NONE;

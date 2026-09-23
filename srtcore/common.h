@@ -270,7 +270,7 @@ struct SrtVersionInfo
 {
     unsigned hs_version;        // Defined explicitly
     unsigned peer_srt_version;  // copy of CUDT::m_uPeerSrtVersion
-    uint32_t common_srt_flags;  // AND of both flag fields, or significant foreign flags
+    uint32_t common_srt_flags;  // copy of CUDT::m_uPeerSrtFlags (possibly some cleared if needed)
 };
 
 // For debug

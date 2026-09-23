@@ -1390,6 +1390,7 @@ size_t srt::CUDT::fillSrtHandshake_HSRSP(uint32_t *aw_srtdata, size_t /* srtlen 
         HLOGP(cnlog.Debug, "HSRSP/snd: AGENT DOES NOT UNDERSTAND REXMIT flag");
     }
 
+    // Supported side distinction for encryption
     aw_srtdata[SRT_HS_FLAGS] |= SRT_OPT_SECDIST;
 
     HLOGC(cnlog.Debug,
