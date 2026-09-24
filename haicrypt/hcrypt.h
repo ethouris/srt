@@ -116,6 +116,14 @@ typedef struct hcrypt_Session_str {
 #define ASSERT(c)   assert(c)
 #endif
 
+inline static void hcrypt_XorStream(unsigned char* dst, const unsigned char* strm, size_t len)
+{
+    size_t i;
+    for (i = 0; i < len; i += 1)
+    {
+        dst[i] ^= strm[i];
+    }
+}
 
 typedef struct {
     size_t iv_size;
@@ -167,12 +175,7 @@ inline static void hcrypt_SetIV(unsigned char* out_iv, hcrypt_Pki pki,
     memset(out_iv, 0, layout[type].iv_size);
     memcpy(out_iv + layout[type].pki_offset, &pki, sizeof pki);
     out_iv[0] = role;
-
-    size_t i;
-    for (i = 0; i < layout[type].nonce_size; ++i)
-    {
-        out_iv[i] ^= nonce[i];
-    }
+    hcrypt_XorStream(out_iv, nonce, layout[type].nonce_size);
 }
 
 int hcryptCtx_SetSecret(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Secret *secret);
