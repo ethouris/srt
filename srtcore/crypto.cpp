@@ -510,22 +510,23 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: key[0]: len=" << m_SndKmMsg[0].MsgLen << " retry=" << m_SndKmMsg[0].iPeerRetry
             << "; key[1]: len=" << m_SndKmMsg[1].MsgLen << " retry=" << m_SndKmMsg[1].iPeerRetry);
 
-        m_bUseGcm153 = vi.peer_srt_version <= SrtVersion(1, 5, 3);
-        if (m_hRcvCrypto != NULL)
+        if (is_handshake && m_hSndCrypto && m_hRcvCrypto)
+        {
+            m_bUseGcm153 = vi.peer_srt_version <= SrtVersion(1, 5, 3);
             HaiCrypt_UpdateGcm153(m_hRcvCrypto, m_bUseGcm153);
-        if (m_hSndCrypto != NULL)
             HaiCrypt_UpdateGcm153(m_hSndCrypto, m_bUseGcm153);
 
-        // Ok, this is initiator side and now we know also the peer's caps
-        if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST) && m_hSndCrypto && m_hRcvCrypto)
-        {
-            // Agent is INITIATOR, which means
-            // - set distinction to INITIATOR for ENCRYPTION.
-            // - set distinction to RESPONDER for DECRYPTION,
+            // Ok, this is initiator side and now we know also the peer's caps
+            if (IsSet(vi.common_srt_flags, SRT_OPT_SECDIST))
+            {
+                // Agent is INITIATOR, which means
+                // - set distinction to INITIATOR for ENCRYPTION.
+                // - set distinction to RESPONDER for DECRYPTION,
 
-            HaiCrypt_UpdateDistinction(m_hSndCrypto, HSD_INITIATOR);
-            HaiCrypt_UpdateDistinction(m_hRcvCrypto, HSD_RESPONDER);
-            HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: SECDIST supported: SND=INITIATOR, RCV=RESPONDER");
+                HaiCrypt_UpdateDistinction(m_hSndCrypto, HSD_INITIATOR);
+                HaiCrypt_UpdateDistinction(m_hRcvCrypto, HSD_RESPONDER);
+                HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: SECDIST supported: SND=INITIATOR, RCV=RESPONDER");
+            }
         }
     }
 
