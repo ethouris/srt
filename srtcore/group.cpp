@@ -3303,7 +3303,7 @@ size_t CUDTGroup::sendBackup_TryActivateStandbyIfNeeded(
         }
         if (to_activate == 0)
         {
-            // We have activated what was needed, thnaks.
+            // We have activated what was needed, thanks.
             break;
         }
 
@@ -3385,7 +3385,6 @@ size_t CUDTGroup::sendBackup_TryActivateStandbyIfNeeded(
         bool isblocked SRT_ATR_UNUSED = true;
         if (erc != SRT_EASYNCSND)
         {
-            // XXX unsure why this ain't set SRT_GST_BROKEN
             isblocked = false;
             d->act_state = AGST_INACTIVE;
             d->sndstate = SRT_GST_BROKEN;

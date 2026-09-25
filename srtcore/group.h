@@ -341,7 +341,7 @@ private:
 
     static void setIfNone(steady_clock::time_point& tp, const steady_clock::time_point& src)
     {
-        if (is_zero(tp))
+        if (sync::is_zero(tp))
             tp = src;
     }
 
