@@ -91,7 +91,9 @@ inline int SrtVersionCapabilities()
 
 std::string SrtFlagString(int32_t flags);
 
-const int SRT_CMD_REJECT = 0, // REJECT is only a symbol for return type
+const int
+      SRT_CMD_REJECT = 0, // REJECT is only a symbol for return type
+      SRT_CMD_ACCEPT = 1, // Only for return value for KMRSP handler
       SRT_CMD_HSREQ = 1,
       SRT_CMD_HSRSP = 2,
       SRT_CMD_KMREQ = 3,

@@ -443,7 +443,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
      */
     HtoNLA(srtd, srtdata, srtlen);
 
-    int retstatus = -1; // Error by default, unless all is confirmed
+    int retstatus = SRT_CMD_NONE; // Error by default, unless all is confirmed
 
     // Since now, when CCryptoControl::decrypt() encounters an error, it will print it, ONCE,
     // until the next KMREQ is received as a key regeneration.
@@ -454,7 +454,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         SRT_KM_STATE peerstate, revstate;
         Tie2(peerstate, revstate) = ErraticKMState(srtd[SRT_KMR_KMSTATE]);
         if (peerstate == SRT_KM_S_UNSECURED)
-            retstatus = 0;
+            retstatus = SRT_CMD_REJECT;
 
         // If the erroneous KMRSP was received while the connection is established, we state
         // the connection should be SECURED already, so no change of the state is done.
@@ -489,7 +489,7 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         {
             m_SndKmState = m_RcvKmState = SRT_KM_S_SECURED;
             HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: KM response matches " << (key1 ? "EVEN" : "ODD") << " key");
-            retstatus = 1;
+            retstatus = SRT_CMD_ACCEPT;
         }
         else
         {
