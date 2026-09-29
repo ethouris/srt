@@ -647,7 +647,7 @@ public: // internal API
 
     SRTU_PROPERTY_RO(SRTSOCKET, id, m_SocketID);
     // TO_REMOVE SRTU_PROPERTY_RO(bool, isClosing, m_bClosing);
-    bool isClosing() { return m_State == SSS_CLOSING; }
+    bool isClosing() { return isState(SSS_CLOSING); }
     SRTU_PROPERTY_RO(CRcvBuffer*, rcvBuffer, m_pRcvBuffer);
     SRTU_PROPERTY_RO(bool, isTLPktDrop, m_bTLPktDrop);
     SRTU_PROPERTY_RO(bool, isSynReceiving, m_config.bSynRecving);
@@ -679,9 +679,7 @@ public: // internal API
     /// be able to reach the EOF report. Replaces the former m_bConnected.
     bool wasConnected()
     {
-        return m_State == CUDT::SSS_CONNECTED
-            || m_State == CUDT::SSS_SHUTDOWN
-            || m_State == CUDT::SSS_BROKEN;
+        return isState(SSS_CONNECTED, SSS_SHUTDOWN, SSS_BROKEN);
     }
 
     /// True if the connection was terminated by a UMSG_SHUTDOWN received from
@@ -697,7 +695,7 @@ public: // internal API
 
     bool stillConnected()
     {
-        return m_State == CUDT::SSS_CONNECTED;
+        return m_State == SSS_CONNECTED;
 #ifdef TO_REMOVE
         // Still connected is when:
         // - no "broken" condition appeared (security, protocol error, response timeout)
@@ -1110,7 +1108,12 @@ private:
     void EmitSignal(ETransmissionEvent tev, EventVariant var);
 
     // Internal state
-    sync::atomic<enum SRTSocketState> m_State;
+    sync::atomic<SRTSocketState> m_State;
+    // Convenience
+    bool isState(SRTSocketState s1) { return m_State == s1; }
+    bool isState(SRTSocketState s1, SRTSocketState s2) { return m_State == s1 || m_State == s2; }
+    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3) { return m_State == s1 || m_State == s2 || m_State == s3; }
+
 #ifdef TO_REMOVE
     sync::atomic<bool> m_bListening;             // If the UDT entity is listening to connection
     sync::atomic<bool> m_bConnecting;            // The short phase when connect() is called but not yet completed
