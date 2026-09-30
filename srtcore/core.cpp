@@ -6797,9 +6797,8 @@ bool srt::CUDT::closeEntity(int reason) ATR_NOEXCEPT
 
 bool CUDT::closeAtFork() ATR_NOEXCEPT
 {
-#ifdef TO_REMOVE
-    m_bShutdown = true;
-#endif
+    // closeBasic() doesn't send a SHUTDOWN packet to the peer (unlike
+    // closeEntity()), so there's no shutdown-avoidance flag to set here.
     return closeBasic(SRT_CLS_CLEANUP);
 }
 
@@ -10002,11 +10001,6 @@ bool CUDT::processCtrlShutdown(int reason)
     // not support the close reason feature send 0 here, hence the fallback.
     setPeerCloseReason(reason == 0 ? SRT_CLS_FALLBACK : reason);
 
-#ifdef TO_REMOVE 
-    m_bShutdown = true;
-    m_bClosing = true;
-    m_bBroken = true;
-#endif 
     m_State = CUDT::SSS_SHUTDOWN;
     m_iBrokenCounter = 60;
 

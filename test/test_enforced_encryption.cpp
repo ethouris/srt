@@ -633,10 +633,13 @@ public:
             }
             else
             {
-                int accept_wait = 2000;
+                int accept_wait = 200;
+                showwait_header(cout, 50);
                 while (--accept_wait && !accept_done)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    if (accept_wait % 4 == 0)
+                        showwait_step(cout);
                 }
             }
             ofcoutl();
