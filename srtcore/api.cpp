@@ -144,7 +144,7 @@ SRT_SOCKSTATUS CUDTSocket::getStatus()
         return SRTS_BROKEN;
 #endif 
     // TODO Just map m_UDT.m_State to SRT_STOCKSTATUS
-    switch(m_UDT.m_State)
+    switch (m_UDT.m_State)
     {
     case CUDT::SSS_BROKEN:
         return SRTS_BROKEN;
@@ -244,7 +244,7 @@ bool CUDTSocket::writeReady() const
         // TODO maybe add SSS_CLOSING and SSS_CLOSE
         return true;
 
-    default: 
+    default:
         return false;
     }
     // TO_REMOVE return (m_UDT.m_bConnected && (m_UDT.m_pSndBuffer->getCurrBufSize() < m_UDT.m_config.iSndBufSize)) || broken();
@@ -1349,7 +1349,7 @@ SRTSTATUS CUDTUnited::listen(const SRTSOCKET u, int backlog)
     if (s->core().m_config.bRendezvous)
         throw CUDTException(MJ_NOTSUP, MN_ISRENDEZVOUS, 0);
 
-    switch(s->m_Status)
+    switch (s->m_Status)
     {
         // OK cases: bound and waiting
         case SRTS_OPENED:
@@ -3511,7 +3511,7 @@ void CUDTUnited::checkBrokenSockets()
             }
 
             HLOGC(cnlog.Debug, log << "Socket @" << s->id() << " considered wiped: managed=" <<
-                    c.m_bManaged << " broken=" << (c.m_State == CUDT::SSS_BROKEN) << " closing=" << c.isClosing());
+                    c.m_bManaged << " state=" << CUDT::sockStateStr(c.m_State));
         }
         else
         {

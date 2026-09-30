@@ -97,6 +97,19 @@ static const std::string s_pwd_a ("s!t@r#i$c^t");
 static const std::string s_pwd_b ("s!t@r#i$c^tu");
 static const std::string s_pwd_no("");
 
+void showwait_header(std::ostream& out, size_t size)
+{
+    out << "[";
+    for (size_t i = 0; i < size; ++i)
+        out << " ";
+    out << "]\r[" << std::flush;
+}
+
+void showwait_step(std::ostream& out)
+{
+    out << "." << std::flush;
+}
+
 /*
  * TESTING SCENARIO
  * Both peers exchange HandShake v5.

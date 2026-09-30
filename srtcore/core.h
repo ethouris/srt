@@ -1113,6 +1113,9 @@ private:
     bool isState(SRTSocketState s1) { return m_State == s1; }
     bool isState(SRTSocketState s1, SRTSocketState s2) { return m_State == s1 || m_State == s2; }
     bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3) { return m_State == s1 || m_State == s2 || m_State == s3; }
+    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3, SRTSocketState s4) { return m_State == s1 || m_State == s2 || m_State == s3 || m_State == s4; }
+    // Debug
+    std::string sockStateStr(SRTSocketState);
 
 #ifdef TO_REMOVE
     sync::atomic<bool> m_bListening;             // If the UDT entity is listening to connection

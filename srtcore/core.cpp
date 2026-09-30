@@ -582,7 +582,7 @@ void CUDT::setOpt(SRT_SOCKOPT optName, const void* optval, int optlen)
 {
     
     // TO_REMOVE if (m_bBroken || m_bClosing)
-    if (m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_CLOSING || m_State == CUDT::SSS_CLOSED)
+    if (isState(SSS_BROKEN, SSS_CLOSING, SSS_CLOSED))
         throw CUDTException(MJ_CONNECTION, MN_CONNLOST, 0);
 
     // Match check (confirm optName as index for s_sockopt_action)
@@ -616,7 +616,7 @@ void CUDT::setOpt(SRT_SOCKOPT optName, const void* optval, int optlen)
 
     // Post-action, if applicable
     // TO_REMOVE if (IsSet(oflags, SrtOpt::POST_SPEC) && m_bConnected)
-    if (IsSet(oflags, SrtOpt::POST_SPEC) && m_State == CUDT::SSS_CONNECTED)
+    if (IsSet(oflags, SrtOpt::POST_SPEC) && m_State == SSS_CONNECTED)
     {
         switch (optName)
         {
@@ -768,7 +768,7 @@ void CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
     {
         int32_t event = 0;
         // TO_REMOVE if (m_bBroken)
-        if (m_State == CUDT::SSS_BROKEN)
+        if (m_State == SSS_BROKEN)
             event |= SRT_EPOLL_ERR;
         else
         {
@@ -852,7 +852,7 @@ void CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
     case SRTO_LATENCY:
     case SRTO_RCVLATENCY:
         // TO_REMOVE if (m_bConnected)
-        if (m_State == CUDT::SSS_CONNECTED)
+        if (m_State == SSS_CONNECTED)
             *(int32_t *)optval = m_iTsbPdDelay_ms;
         else
             *(int32_t *)optval = m_config.iRcvLatency;
@@ -861,7 +861,7 @@ void CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
 
     case SRTO_PEERLATENCY:
         // TO_REMOVE if (m_bConnected)
-        if (m_State == CUDT::SSS_CONNECTED)
+        if (m_State == SSS_CONNECTED)
             *(int32_t *)optval = m_iPeerTsbPdDelay_ms;
         else
             *(int32_t *)optval = m_config.iPeerLatency;
@@ -871,7 +871,7 @@ void CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
 
     case SRTO_TLPKTDROP:
         // TO_REMOVE if (m_bConnected)
-        if (m_State == CUDT::SSS_CONNECTED)
+        if (m_State == SSS_CONNECTED)
             *(bool *)optval = m_bTLPktDrop;
         else
             *(bool *)optval = m_config.bTLPktDrop;
@@ -1060,7 +1060,7 @@ bool CUDT::setstreamid(SRTSOCKET u, const std::string &sid)
         return false;
 
     // TO_REMOVE if (that->m_bConnected)
-    if (that->m_State == CUDT::SSS_CONNECTED)
+    if (that->m_State == SSS_CONNECTED)
         return false;
 
     that->m_config.sStreamName.set(sid);
@@ -3464,7 +3464,7 @@ bool CUDT::interpretGroup(CUDTSocket* lsn, const int32_t groupdata[], size_t dat
 
         // Recheck broken flags after acquisition
         // TO_REMOVE if (m_bClosing || m_bBroken)
-        if (m_State == CUDT::SSS_CLOSING || m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_CLOSED)
+        if (isState(SSS_CLOSING, SSS_BROKEN, SSS_CLOSED))
         {
             m_RejectReason = SRT_REJ_CLOSE;
             LOGC(cnlog.Error, log << CONID() << "interpretGroup: closure during handshake, interrupting");
@@ -3548,7 +3548,7 @@ bool CUDT::interpretGroup(CUDTSocket* lsn, const int32_t groupdata[], size_t dat
 
         // Recheck broken flags after acquisition
         // TO_REMOVE if (m_bClosing || m_bBroken)
-        if (m_State == CUDT::SSS_CLOSING || m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_CLOSED)
+        if (isState(SSS_CLOSING, SSS_BROKEN, SSS_CLOSED))
         {
             m_RejectReason = SRT_REJ_CLOSE;
             LOGC(cnlog.Error, log << CONID() << "interpretGroup: closure during handshake, interrupting");
@@ -5766,7 +5766,7 @@ void * CUDT::tsbpd(void* param)
 
     self->m_bTsbPdNeedsWakeup = true;
     // TO_REMOVE while (!self->m_bClosing)
-    while (self->m_State == CUDT::SSS_CONNECTED)
+    while (self->m_State == SSS_CONNECTED)
     {
         steady_clock::time_point tsNextDelivery; // Next packet delivery time
         bool                     rxready = false;
@@ -6584,9 +6584,10 @@ bool srt::CUDT::closeBasic(int reason) ATR_NOEXCEPT
         HLOGC(smlog.Debug, log << CONID() << "... (linger)");
 // TO_REMOVE        while (!m_bBroken && m_bConnected && (m_pSndBuffer->getCurrBufSize() > 0) &&
 // TO_REMOVE               (steady_clock::now() - entertime < seconds_from(m_config.Linger.l_linger)))
-        while ((m_State == CUDT::SSS_CONNECTED || m_State == CUDT::SSS_CLOSING) && m_pSndBuffer &&
-               (m_pSndBuffer->getCurrBufSize() > 0) &&
-               (steady_clock::now() - entertime < seconds_from(m_config.Linger.l_linger)))
+        while (isState(SSS_CONNECTED, SSS_CLOSING)
+                && m_pSndBuffer
+                && (m_pSndBuffer->getCurrBufSize() > 0)
+                && (steady_clock::now() - entertime < seconds_from(m_config.Linger.l_linger)))
         {
             // linger has been checked by previous close() call and has expired
             if (m_tsLingerExpiration >= entertime)
@@ -6626,7 +6627,7 @@ bool srt::CUDT::closeBasic(int reason) ATR_NOEXCEPT
 
     // remove this socket from the snd queue
     // TO_REMOVE if (m_bConnected)
-    if (m_State == CUDT::SSS_CONNECTED)
+    if (m_State == SSS_CONNECTED)
     {
         HLOGC(smlog.Debug, log << CONID() << "CLOSING: Remove from sender queue");
         m_pMuxer->removeSender(this);
@@ -6842,7 +6843,7 @@ int CUDT::receiveBuffer(char *data, int len)
 #ifdef TO_REMOVE
 
     // TO_REMOVE if ((m_bBroken || m_bClosing) && !isRcvBufferReady())
-    if ((m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_CLOSING) && !isRcvBufferReady())
+    if (isState(SSS_BROKEN, SSS_CLOSING) && !isRcvBufferReady())
     {
         if (m_bShutdown)
         {
@@ -6938,7 +6939,7 @@ int CUDT::receiveBuffer(char *data, int len)
     }
 #ifdef TO_REMOVE
     // TO_REMOVE if ((m_bBroken || m_bClosing) && !isRcvBufferReady())
-    if ((m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_CLOSING) && !isRcvBufferReady())
+    if (isState(SSS_BROKEN, SSS_CLOSING) && !isRcvBufferReady())
     {
         // See at the beginning
         if (!m_config.bMessageAPI && m_bShutdown)
@@ -8731,7 +8732,7 @@ bool CUDT::getFirstNoncontSequence(int32_t& w_seq, string& w_log_reason)
     // because it is being currently closed.
 
     // TO_REMOVE if (m_bClosing || m_bBroken || m_bBreaking)
-    if (m_State == CUDT::SSS_CLOSING || m_State == CUDT::SSS_BROKEN || m_State == CUDT::SSS_BREAKING || m_State == CUDT::SSS_CLOSED)
+    if (isState(SSS_CLOSING, SSS_BROKEN, SSS_BREAKING, SSS_CLOSED))
         return false;
 #endif
 
@@ -9287,7 +9288,7 @@ bool CUDT::processCtrlAck(const CPacket &ctrlpkt, const steady_clock::time_point
 
 #if SRT_ENABLE_BONDING
     // TO_REMOVE if (!m_bClosing && m_parent->m_GroupOf)
-    if (m_State == CUDT::SSS_CONNECTED && m_parent->m_GroupOf)
+    if (m_State == SSS_CONNECTED && m_parent->m_GroupOf)
     {
         SharedLock glock (uglobal().m_GlobControlLock);
         if (m_parent->m_GroupOf)
@@ -10846,7 +10847,7 @@ bool CUDT::packUniqueData(CSndPacket& w_sndpkt)
 #if SRT_ENABLE_BONDING
     CUDTUnited::GroupKeeper gk(uglobal(), m_parent);
     //  TO_REMOVE if (!m_bClosing && gk.group)
-    if (m_State == CUDT::SSS_CONNECTED && gk.group)
+    if (m_State == SSS_CONNECTED && gk.group)
     {
         const int packetspan = CSeqNo::seqoff(current_sequence_number, w_packet.seqno());
         if (packetspan > 0)
@@ -12414,7 +12415,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
     // the request was redirected from the receiver queue.
 
     // TO_REMOVE if (m_bClosing)
-    if (m_State == CUDT::SSS_CLOSING)
+    if (m_State == SSS_CLOSING)
     {
         m_RejectReason = SRT_REJ_CLOSE;
         HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ... NOT. Rejecting because closing.");
@@ -12427,7 +12428,7 @@ int CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
      * processing and crashes later.
      */
     // TO_REMOVE if (m_bBroken)
-    if (m_State == CUDT::SSS_BROKEN)
+    if (m_State == SSS_BROKEN)
     {
         m_RejectReason = SRT_REJ_CLOSE;
         HLOGC(cnlog.Debug, log << CONID() << "processConnectRequest: ... NOT. Rejecting because broken.");
@@ -12861,7 +12862,7 @@ bool CUDT::checkExpTimer(const steady_clock::time_point& currtime, int check_rea
     // timeout: at least 16 expirations and must be greater than 5 seconds
     time_point last_rsp_time = m_tsLastRspTime.load();
     // TO_REMOVE if (m_bBreakAsUnstable || ((m_iEXPCount > COMM_RESPONSE_MAX_EXP) && (currtime - last_rsp_time > microseconds_from(PEER_IDLE_TMO_US))))
-    if (m_State == CUDT::SSS_BREAK_AS_UNSTABLE || ((m_iEXPCount > COMM_RESPONSE_MAX_EXP) &&
+    if (m_State == SSS_BREAK_AS_UNSTABLE || ((m_iEXPCount > COMM_RESPONSE_MAX_EXP) &&
         (currtime - last_rsp_time > microseconds_from(PEER_IDLE_TMO_US))))
     {
         setAgentCloseReason(SRT_CLS_PEERIDLE);
@@ -13473,4 +13474,27 @@ HandshakeSide CUDT::handshakeSide(SRTSOCKET u)
     CUDTSocket *s = uglobal().locateSocket(u);
     return s ? s->core().handshakeSide() : HSD_DRAW;
 }
+
+std::string CUDT::sockStateStr(CUDT::SRTSocketState st)
+{
+    // NOTE: SYNC with the enum order!
+    static const char* const names[] = {
+        "INIT",
+        "LISTENING",
+        "CONNECTING",
+        "CONNECTED",
+        "CLOSING",
+        "SHUTDOWN",
+        "BREAKING",
+        "BROKEN",
+        "BREAK_AS_UNSTABLE",
+        "PEER_HEALTH",
+        "MANAGED",
+        "OPENED",
+        "CLOSED"
+    };
+
+    return names[st];
+}
+
 } // END namespace srt
