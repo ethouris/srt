@@ -3511,7 +3511,7 @@ void CUDTUnited::checkBrokenSockets()
             }
 
             HLOGC(cnlog.Debug, log << "Socket @" << s->id() << " considered wiped: managed=" <<
-                    c.m_bManaged << " broken=" << c.m_bBroken << " closing=" << c.m_bClosing);
+                    c.m_bManaged << " broken=" << (c.m_State == CUDT::SSS_BROKEN) << " closing=" << c.isClosing());
         }
         else
         {
