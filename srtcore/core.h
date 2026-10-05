@@ -1110,12 +1110,21 @@ private:
     // Internal state
     sync::atomic<SRTSocketState> m_State;
     // Convenience
-    bool isState(SRTSocketState s1) { return m_State == s1; }
-    bool isState(SRTSocketState s1, SRTSocketState s2) { return m_State == s1 || m_State == s2; }
-    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3) { return m_State == s1 || m_State == s2 || m_State == s3; }
-    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3, SRTSocketState s4) { return m_State == s1 || m_State == s2 || m_State == s3 || m_State == s4; }
+#if HAVE_CXX11
+    bool isState() const { return true; }
+    template<class... Args>
+    bool isState(SRTSocketState st, Args... others) const { return m_State == st || isState(others...); }
+#else
+    bool isState(SRTSocketState s1) const { return m_State == s1; }
+    bool isState(SRTSocketState s1, SRTSocketState s2) const
+    { return m_State == s1 || m_State == s2; }
+    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3) const
+    { return m_State == s1 || m_State == s2 || m_State == s3; }
+    bool isState(SRTSocketState s1, SRTSocketState s2, SRTSocketState s3, SRTSocketState s4) const
+    { return m_State == s1 || m_State == s2 || m_State == s3 || m_State == s4; }
+#endif
     // Debug
-    std::string sockStateStr(SRTSocketState);
+    static std::string sockStateStr(SRTSocketState);
 
 #ifdef TO_REMOVE
     sync::atomic<bool> m_bListening;             // If the UDT entity is listening to connection
