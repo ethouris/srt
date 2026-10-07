@@ -1226,9 +1226,7 @@ void CUDT::setListenState()
                 break;
             }
             break;
-        case CUDT::SSS_CONNECTING:
-            // [[fallthrough]]
-            // fallthourgh
+        case CUDT::SSS_CONNECTING: // OR
         case CUDT::SSS_CONNECTED:
             throw CUDTException(MJ_NOTSUP, MN_ISCONNECTED, 0);
         default:
@@ -7999,12 +7997,12 @@ int64_t CUDT::recvfile(fstream &ofs, int64_t &offset, int64_t size, int block)
         // Forced to return 0 instead of throwing exception.
         if (!m_config.bMessageAPI)
             return 0;
-        // fallthrough
+
+        ATR_FALLTHROUGH;
+
     case CUDT::SSS_BROKEN: // OR
     case CUDT::SSS_CLOSING:
-        {
             throw CUDTException(MJ_CONNECTION, MN_CONNLOST, 0);
-        }
 
     default:
         throw CUDTException(MJ_CONNECTION, MN_NOCONN, 0);
