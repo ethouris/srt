@@ -281,16 +281,17 @@ library.
 [`srt_startup`](#srt_startup) multiple times, call `srt_cleanup` the same
 number of times. Only the last call does the actual cleanup.
 
-2. Calling `srt_cleanup` before `main()` returns is the recommended and most
-reliable way, as all SRT internal threads are still running and the sockets
-can be closed gracefully.
+2. Calling `srt_cleanup` before `main()` returns is strongly recommended,
+as this is the only way how all SRT sockets can be gracefully closed and
+all used resources cleanly reclaimed.
 
-3. Calling `srt_cleanup` later (for example, from a C++ static destructor
-or an `atexit` handler) is tolerated, but on some platforms the SRT internal
-threads may have already been terminated by the system at this point. In this
-case the cleanup doesn't wait for these threads. It releases the sockets
-without any graceful closing (no linger, no shutdown sent to the peer), and some
-resources may leak, which is harmless at process exit.
+3. Calling `srt_cleanup` after `main()` returns (e. g. in a C++ global
+destructor or a cleanup handler registered in `atexit`) is pointless - in this
+case it will behave identically as the SRT global destructor, which will still
+be called anyway: All sockets will be closed forcefully (no linger or shutdown
+message taken into account) and on some platforms the allocated resources that
+are shared between threads will be left to leak and get reclaimed by the system
+directly.
 
 **NOTES ON SPECIFIC PLATFORMS**:
 
@@ -307,8 +308,8 @@ unloading the DLL.
 2. After `fork()`, only the calling thread exists in the child process, so
 the SRT internal state may be left half-updated. SRT therefore does the same
 forced cleanup in the child process: all sockets inherited from the parent are
-deleted without graceful closing. If your application uses `fork()`, call it
-before creating any SRT socket.
+deleted without graceful closing. If your application uses `fork()`, it is
+strongly recommended that you call it before creating any SRT socket.
 
 |      Returns                  |                                                                 |
 |:----------------------------- |:--------------------------------------------------------------- |

@@ -71,10 +71,15 @@ modified by
 
 #ifdef _WIN32
 #include <win/wintime.h>
+#include <libloaderapi.h>
 #endif
 
 #ifdef _MSC_VER
 #pragma warning(error : 4530)
+#endif
+
+#ifndef SRT_ENABLE_WSA_INIT
+#define SRT_ENABLE_WSA_INIT 0
 #endif
 
 using namespace std;
@@ -201,42 +206,49 @@ srt::CUDTUnited::CUDTUnited()
     setupMutex(m_GlobControlLock, "GlobControl");
     setupMutex(m_IDLock, "ID");
     setupMutex(m_InitLock, "Init");
-    // Global initialization code
-#ifdef _WIN32
-    WORD    wVersionRequested;
-    WSADATA wsaData;
-    wVersionRequested = MAKEWORD(2, 2);
-
-    if (0 != WSAStartup(wVersionRequested, &wsaData))
-        throw CUDTException(MJ_SETUP, MN_NONE, WSAGetLastError());
-#endif
     CCryptoControl::globalInit();
     HLOGC(inlog.Debug, log << "SRT Clock Type: " << SRT_SYNC_CLOCK_STR);
 }
 
-// On Windows, when ExitProcess() is in progress (that is, after main() has
-// returned), all threads other than the exiting one have been already
-// terminated, while the static destructors and atexit handlers of the
-// DLLs are still to be called. Any SRT internal thread might have been
-// terminated while holding a lock, so in this state nothing may be waited for.
-static bool processExitInProgress()
-{
 #ifdef _WIN32
-    typedef BOOLEAN (WINAPI *fn_t)(void);
+struct SelfAdaptFuncPtr
+{
+    void (*funcptr)(void);
+
     // Double cast through void(*)() to avoid -Wcast-function-type warnings.
-    static const fn_t fn = reinterpret_cast<fn_t>(reinterpret_cast<void (*)()>(
-                GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlDllShutdownInProgress")));
-    return fn && fn();
-#else
-    return false;
-#endif
+    SelfAdaptFunc(FARPROC ptr):
+        funcptr(reinterpret_cast<void (*)(void)>(ptr))
+    {
+    }
+    SelfAdaptFunc(): funcptr(NULL) {}
+
+    template<class Signature>
+    operator Signature* ()
+    {
+        return reinterpret_cast<Signature*>(funcptr);
+    }
+};
+
+inline SelfAdaptFuncPtr GetProcFromDLL(const char* dllname, const char* name)
+{
+    HMODULE hdll = GetModuleHandleA(dllname);
+    if (!hdll)
+        return SelfAdaptFuncPtr();
+
+    return GetProcAddress(hdll, name);
 }
 
 // If the process exit is in progress, give up any cleanup and intentionally
 // leak all resources; the system will reclaim them. Returns true in this case.
-bool srt::CUDTUnited::abandonAtProcessExit()
+bool srt::CUDTUnited::ambandonAtProcessExit()
 {
-    if (!processExitInProgress())
+    // On Windows, when ExitProcess() is in progress (that is, after main() has
+    // returned), all threads other than the exiting one have been already
+    // terminated, while the static destructors and atexit handlers of the
+    // DLLs are still to be called. Any SRT internal thread might have been
+    // terminated while holding a lock, so in this state nothing may be waited for.
+    BOOLEAN (WINAPI* ShutdownInProgress)(void) = GetProcFromDLL("ntdll.dll", "RtlDllShutdownInProgress");
+    if (!ShutdownInProgress || !(*ShutdownInProgress)())
         return false;
 
     // The destructors of the multiplexers would try to stop the worker
@@ -251,6 +263,10 @@ bool srt::CUDTUnited::abandonAtProcessExit()
     m_bGCStatus = false;
     return true;
 }
+
+#else
+bool srt::CUDTUnited::abandonAtProcessExit() { return false; }
+#endif
 
 srt::CUDTUnited::~CUDTUnited()
 {
@@ -281,7 +297,7 @@ srt::CUDTUnited::~CUDTUnited()
     releaseMutex(m_GCStopLock);
     releaseMutex(m_GCStartLock);
     delete m_pCache;
-#ifdef _WIN32
+#if defined(_WIN32) && SRT_ENABLE_WSA_INIT
     WSACleanup();
 #endif
 }
@@ -3684,7 +3700,17 @@ int srt::CUDT::startup()
         pthread_atfork(NULL, NULL, (void (*)()) srt::CUDT::cleanupAtFork);
         registered = true;
     }
-#endif 
+#endif
+
+    // Global initialization code
+#if defined(_WIN32) && SRT_ENABLE_WSA_INIT
+    WORD    wVersionRequested;
+    WSADATA wsaData;
+    wVersionRequested = MAKEWORD(2, 2);
+
+    if (0 != WSAStartup(wVersionRequested, &wsaData))
+        return APIError(MJ_SETUP, MN_NONE, WSAGetLastError());
+#endif
     return uglobal().startup();
 }
 
