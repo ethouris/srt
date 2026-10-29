@@ -211,57 +211,53 @@ srt::CUDTUnited::CUDTUnited()
 }
 
 #ifdef _WIN32
-struct SelfAdaptFuncPtr
+template<class Signature>
+struct FuncFromDll
 {
-    void (*funcptr)(void);
+    Signature* fptr;
+    FuncFromDll(): fptr(NULL) {}
 
-    // Double cast through void(*)() to avoid -Wcast-function-type warnings.
-    SelfAdaptFunc(FARPROC ptr):
-        funcptr(reinterpret_cast<void (*)(void)>(ptr))
+    FuncFromDll(const char* dllname, const char* name)
     {
-    }
-    SelfAdaptFunc(): funcptr(NULL) {}
-
-    template<class Signature>
-    operator Signature* ()
-    {
-        return reinterpret_cast<Signature*>(funcptr);
+        HMODULE hdll = GetModuleHandleA(dllname);
+        if (hdll)
+        {
+            FARPROC ffptr = GetProcAddress(hdll, name);
+            fptr          = reinterpret_cast<Signature*>(ffptr);
+            return;
+        }
+        
+        fptr = NULL;               
     }
 };
 
-inline SelfAdaptFuncPtr GetProcFromDLL(const char* dllname, const char* name)
-{
-    HMODULE hdll = GetModuleHandleA(dllname);
-    if (!hdll)
-        return SelfAdaptFuncPtr();
-
-    return GetProcAddress(hdll, name);
-}
 
 // If the process exit is in progress, give up any cleanup and intentionally
 // leak all resources; the system will reclaim them. Returns true in this case.
-bool srt::CUDTUnited::ambandonAtProcessExit()
+bool srt::CUDTUnited::abandonAtProcessExit()
 {
     // On Windows, when ExitProcess() is in progress (that is, after main() has
     // returned), all threads other than the exiting one have been already
     // terminated, while the static destructors and atexit handlers of the
     // DLLs are still to be called. Any SRT internal thread might have been
     // terminated while holding a lock, so in this state nothing may be waited for.
-    BOOLEAN (WINAPI* ShutdownInProgress)(void) = GetProcFromDLL("ntdll.dll", "RtlDllShutdownInProgress");
-    if (!ShutdownInProgress || !(*ShutdownInProgress)())
-        return false;
-
-    // The destructors of the multiplexers would try to stop the worker
-    // threads, which requires locking; move them away so that they are
-    // never destroyed.
-    (new std::map<int, CMultiplexer>)->swap(m_mMultiplexer);
+    FuncFromDll<BOOLEAN (WINAPI*)(void)> ShutdownInProgress("ntdll.dll", "RtlDllShutdownInProgress");
+    if (ShutdownInProgress.fptr && (*ShutdownInProgress.fptr)())
+    {
+        // The destructors of the multiplexers would try to stop the worker
+        // threads, which requires locking; move them away so that they are
+        // never destroyed.
+        (new std::map<int, CMultiplexer>)->swap(m_mMultiplexer);
 #ifdef ENABLE_STDCXX_SYNC
-    // Destroying a joinable std::thread would call std::terminate().
-    if (m_GCThread.joinable())
-        m_GCThread.detach();
+        // Destroying a joinable std::thread would call std::terminate().
+        if (m_GCThread.joinable())
+            m_GCThread.detach();
 #endif
-    m_bGCStatus = false;
-    return true;
+        m_bGCStatus = false;
+        return true;
+    }
+
+    return false;
 }
 
 #else
